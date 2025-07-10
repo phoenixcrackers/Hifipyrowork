@@ -1,0 +1,11 @@
+@import "tailwindcss";
+
+@theme {
+  --breakpoint-hundred: 1550px;
+  --breakpoint-onefifty: 1024px;
+  --breakpoint-mobile: 350px;
+}
+
+@plugin "daisyui" {
+  themes: light;
+}
