@@ -58,7 +58,7 @@ const Login = () => {
 
   useEffect(() => {
     // Fetch states
-    fetch(`${API_BASE_URL}/api/locations/states`)
+    fetch(`https://funwithcrackersbackend-production.up.railway.app/api/locations/states`)
       .then(res => res.json())
       .then(data => setStates(data))
       .catch(err => {
@@ -70,7 +70,7 @@ const Login = () => {
 
   useEffect(() => {
     if (formData.state) {
-      fetch(`${API_BASE_URL}/api/locations/states/${encodeURIComponent(formData.state)}/districts`)
+      fetch(`https://funwithcrackersbackend-production.up.railway.app/api/locations/states/${encodeURIComponent(formData.state)}/districts`)
         .then(res => res.json())
         .then(data => setDistricts(data))
         .catch(err => {

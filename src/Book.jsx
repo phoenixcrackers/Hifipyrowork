@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { FaPlus, FaMinus, FaShoppingCart, FaSignOutAlt } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../Config";
+import { API_BASE_URL_loc } from "../Config";
 import './App.css';
 
 const BigFireworkAnimation = ({ delay = 0 }) => {
@@ -76,8 +77,8 @@ const Book = () => {
         }
 
         const [prodRes, statesRes, userRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/product`),
-          fetch(`${API_BASE_URL}/api/locations/states`),
+          fetch(`${API_BASE_URL}/api/gift-box-products`),
+          fetch(`${API_BASE_URL_loc}/api/locations/states`),
           fetch(`${API_BASE_URL}/api/auth/user/${encodeURIComponent(username)}`)
         ]);
 
@@ -93,7 +94,7 @@ const Book = () => {
           states,
           customer: {
             customer_name: user.username,
-            company_name: user.companyname,
+            company_name: user.companyname, // Fixed typo here
             license_number: user.licencenumber || "",
             address: user.address,
             district: user.district,
@@ -116,7 +117,7 @@ const Book = () => {
 
   useEffect(() => {
     if (state.customer.state) {
-      fetch(`${API_BASE_URL}/api/locations/states/${encodeURIComponent(state.customer.state)}/districts`)
+      fetch(`${API_BASE_URL_loc}/api/locations/states/${encodeURIComponent(state.customer.state)}/districts`)
         .then(res => res.json())
         .then(districts => setState(s => ({ ...s, districts })))
         .catch(err => {
@@ -174,7 +175,7 @@ const Book = () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to create booking");
-      const prodRes = await fetch(`${API_BASE_URL}/api/product`);
+      const prodRes = await fetch(`${API_BASE_URL}/api/gift-box-products`);
       const products = await prodRes.json();
       if (!prodRes.ok) throw new Error("Failed to refresh products");
       setState(s => ({
@@ -255,9 +256,9 @@ const Book = () => {
 
   return (
     <div className="min-h-screen bg-gray-100">
-        <motion.div className="fixed left-4 top-4">
-            <p className="text-4xl font-bold text-sky-600">Fun With Crackers</p>
-        </motion.div>
+      <motion.div className="fixed left-4 top-4">
+        <p className="text-4xl font-bold text-sky-600">Hifi Pyro Work</p>
+      </motion.div>
       <motion.button
         onClick={handleLogout}
         whileHover={{ scale: 1.1 }}
