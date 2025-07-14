@@ -257,7 +257,7 @@ const Book = () => {
   return (
     <div className="min-h-screen bg-gray-100">
       <motion.div className="fixed left-4 top-4">
-        <p className="text-4xl font-bold text-sky-600">Hifi Pyro Work</p>
+        <p className="text-4xl font-bold text-sky-600">Hifi Pyro Park</p>
       </motion.div>
       <motion.button
         onClick={handleLogout}

@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FaBox, FaChartBar, FaBars, FaTimes} from 'react-icons/fa';
+import { FaBox, FaChartBar, FaBars, FaTimes,  FaStackExchange, FaUsers, FaShoppingCart} from 'react-icons/fa';
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
 
   const navItems = [
     { name: 'Inventory', path: '/dealers', icon: <FaBox className="mr-2" /> },
+    { name: 'Stock', path: '/stock', icon: <FaStackExchange className="mr-2" /> },
     { name: 'Report', path: '/report', icon: <FaChartBar className="mr-2" /> },
+    { name: 'Direct Customer', path: '/direct-customer', icon: <FaUsers className="mr-2" /> },
+    { name: 'Direct Enquiry', path: '/direct-enquiry', icon: <FaShoppingCart className="mr-2" /> },
   ];
 
   const toggleSidebar = () => {

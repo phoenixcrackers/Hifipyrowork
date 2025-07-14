@@ -6,6 +6,9 @@ import Dealers from './Admin/Dealers';
 import Admin from './Admin/Admin';
 import Protected from './Protected';
 import Report from './Admin/Report';
+import StockIn from './Admin/StockIn';
+import Direct from './Admin/Direct'
+import Localcustomer from './Admin/Localcustomer';
 
 const AllRoutes = () => {
   return (
@@ -16,6 +19,9 @@ const AllRoutes = () => {
       <Route element={<Protected />}>
         <Route path="/dealers" element={<Dealers />} />
         <Route path="/report" element={<Report />} />
+        <Route path="/stock" element={<StockIn />} />
+        <Route path="/direct-customer" element={<Localcustomer />} />
+        <Route path="/direct-enquiry" element={<Direct />} />
       </Route>
       
       <Route element={<ProtectedRoute />}>
