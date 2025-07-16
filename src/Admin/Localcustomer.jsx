@@ -282,35 +282,6 @@ export default function Localcustomer() {
                     required
                   />
                 </div>
-                <div className="sm:col-span-3">
-                  <label htmlFor="boxCount" className="block text-sm font-medium text-gray-900">Box Count</label>
-                  <div className="mt-2 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => adjustBoxCount(-1)}
-                      className="px-3 py-1 bg-gray-200 rounded-md text-gray-900 hover:bg-gray-300"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="number"
-                      name="boxCount"
-                      id="boxCount"
-                      value={formData.boxCount}
-                      onChange={handleChange}
-                      min="1"
-                      className="w-20 rounded-md bg-white py-1.5 px-3 text-base text-gray-900 outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => adjustBoxCount(1)}
-                      className="px-3 py-1 bg-gray-200 rounded-md text-gray-900 hover:bg-gray-300"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
               </div>
             )}
 
@@ -396,35 +367,6 @@ export default function Localcustomer() {
                     placeholder="123 Main St, Apt 4B"
                     required
                   />
-                </div>
-                <div className="sm:col-span-3">
-                  <label htmlFor="boxCount" className="block text-sm font-medium text-gray-900">Box Count</label>
-                  <div className="mt-2 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => adjustBoxCount(-1)}
-                      className="px-3 py-1 bg-gray-200 rounded-md text-gray-900 hover:bg-gray-300"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="number"
-                      name="boxCount"
-                      id="boxCount"
-                      value={formData.boxCount}
-                      onChange={handleChange}
-                      min="1"
-                      className="w-20 rounded-md bg-white py-1.5 px-3 text-base text-gray-900 outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => adjustBoxCount(1)}
-                      className="px-3 py-1 bg-gray-200 rounded-md text-gray-900 hover:bg-gray-300"
-                    >
-                      +
-                    </button>
-                  </div>
                 </div>
               </div>
             )}
@@ -525,35 +467,6 @@ export default function Localcustomer() {
                     placeholder="123 Main St, Apt 4B"
                     required
                   />
-                </div>
-                <div className="sm:col-span-3">
-                  <label htmlFor="boxCount" className="block text-sm font-medium text-gray-900">Box Count</label>
-                  <div className="mt-2 flex items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => adjustBoxCount(-1)}
-                      className="px-3 py-1 bg-gray-200 rounded-md text-gray-900 hover:bg-gray-300"
-                    >
-                      -
-                    </button>
-                    <input
-                      type="number"
-                      name="boxCount"
-                      id="boxCount"
-                      value={formData.boxCount}
-                      onChange={handleChange}
-                      min="1"
-                      className="w-20 rounded-md bg-white py-1.5 px-3 text-base text-gray-900 outline-1 outline-gray-300 focus:outline-2 focus:outline-indigo-600 sm:text-sm"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => adjustBoxCount(1)}
-                      className="px-3 py-1 bg-gray-200 rounded-md text-gray-900 hover:bg-gray-300"
-                    >
-                      +
-                    </button>
-                  </div>
                 </div>
               </div>
             )}
