@@ -9,6 +9,10 @@ import Report from './Admin/Report';
 import StockIn from './Admin/StockIn';
 import Direct from './Admin/Direct'
 import Localcustomer from './Admin/Localcustomer';
+import Ledger from './Admin/Ledger';
+import Dispatch from './Admin/Dipatch';
+import Tracking from './Admin/Tracking';
+import PendingPayments from './Admin/PendingPayments';
 
 const AllRoutes = () => {
   return (
@@ -22,6 +26,10 @@ const AllRoutes = () => {
         <Route path="/stock" element={<StockIn />} />
         <Route path="/direct-customer" element={<Localcustomer />} />
         <Route path="/direct-enquiry" element={<Direct />} />
+        <Route path="/ledger" element={<Ledger />} />
+        <Route path="/dispatch" element={<Dispatch />} />
+        <Route path="/tracking" element={<Tracking />} />
+        <Route path="/pending" element={<PendingPayments />} />
       </Route>
       
       <Route element={<ProtectedRoute />}>

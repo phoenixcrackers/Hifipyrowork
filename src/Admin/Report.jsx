@@ -30,50 +30,26 @@ export default function Report() {
 
   const generatePDF = (booking) => {
     const doc = new jsPDF();
-    const formatDate = (dateStr) => {
-      if (!dateStr) return 'N/A';
-      const date = new Date(dateStr);
-      if (isNaN(date)) return 'N/A';
-      return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
-    };
+    const formatDate = (dateStr) => (dateStr ? new Date(dateStr).toLocaleDateString('en-GB') : 'N/A');
 
-    doc.setFontSize(22);
-    doc.text('Fun with Crackers', doc.internal.pageSize.width / 2, 20, { align: 'center' });
-
+    doc.setFontSize(22).text('Fun with Crackers Report', 10, 20);
     doc.setFontSize(12);
-    const orderDetails = [
-      ['Order ID', booking.order_id || 'N/A', 'Customer Name', booking.customer_name || 'N/A'],
-      ['Phone', booking.phone_number || 'N/A', 'District', booking.district || 'N/A'],
-      ['State', booking.state || 'N/A', 'Date', formatDate(booking.created_at)],
-    ];
+
+    const tableData = bookings.map((b, index) => [
+      index + 1,
+      b.order_id || 'N/A',
+      b.customer_name || 'N/A',
+      `Rs.${b.total || '0.00'}`,
+      b.admin_username || 'N/A',
+    ]);
 
     autoTable(doc, {
-      startY: 40,
-      body: orderDetails,
-      columnStyles: { 0: { cellWidth: 50 }, 1: { cellWidth: 50 }, 2: { cellWidth: 50 }, 3: { cellWidth: 50 } },
-      styles: { fontSize: 12 },
+      head: [['Sl. No', 'Order ID', 'Customer Name', 'Total', 'Admin']],
+      body: tableData,
+      startY: 30,
     });
 
-    const startY = doc.lastAutoTable.finalY + 10;
-    autoTable(doc, {
-      startY,
-      head: [['Sl. No', 'Serial No', 'Product Type', 'Product Name', 'Price', 'Quantity', 'Per']],
-      body: (booking.products || []).map((product, index) => [
-        index + 1,
-        product.id || 'N/A',
-        product.product_type || 'N/A',
-        product.productname || 'N/A',
-        `Rs.${product.price || '0.00'}`,
-        product.quantity || 0,
-        product.per || 'N/A',
-      ]),
-    });
-
-    const finalY = doc.lastAutoTable.finalY + 10;
-    doc.text(`Total: Rs.${booking.total || '0.00'}`, 150, finalY, { align: 'right' });
-
-    const sanitizedCustomerName = (booking.customer_name || 'order').replace(/[^a-zA-Z0-9]/g, '_');
-    doc.save(`${sanitizedCustomerName}_crackers_order.pdf`);
+    doc.save('report.pdf');
   };
 
   const exportToExcel = () => {
@@ -81,21 +57,14 @@ export default function Report() {
       'Sl. No': i + 1,
       'Order ID': b.order_id || '',
       'Customer Name': b.customer_name || '',
-      'Mobile Number': b.mobile_number || '',
-      'District': b.district || '',
-      'State': b.state || '',
-      'Date': new Date(b.created_at).toLocaleDateString('en-GB'),
-      'Address': b.address || '',
-      'Total Amount': b.total || '',
-      'Products': (b.products || []).map(p =>
-        `${p.productname} (x${p.quantity}) - Rs.${p.price} [${p.product_type}]`
-      ).join('\n'),
+      'Total': b.total || '',
+      'Admin': b.admin_username || '',
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(data);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Bookings');
-    XLSX.writeFile(workbook, 'Bookings_Report.xlsx');
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Report');
+    XLSX.writeFile(workbook, 'Report.xlsx');
   };
 
   return (
@@ -115,9 +84,15 @@ export default function Report() {
           <div className="flex justify-end mb-4">
             <button
               onClick={exportToExcel}
-              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md"
+              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md mr-2"
             >
               Export to Excel
+            </button>
+            <button
+              onClick={generatePDF}
+              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md"
+            >
+              <FaDownload className="mr-2" /> Download PDF
             </button>
           </div>
 
@@ -128,47 +103,24 @@ export default function Report() {
                   <th className="text-center text-gray-700 font-semibold">Sl. No</th>
                   <th className="text-center text-gray-700 font-semibold">Order ID</th>
                   <th className="text-center text-gray-700 font-semibold">Customer Name</th>
-                  <th className="text-center text-gray-700 font-semibold">Phone</th>
-                  <th className="text-center text-gray-700 font-semibold">District</th>
-                  <th className="text-center text-gray-700 font-semibold">State</th>
-                  <th className="text-center text-gray-700 font-semibold">Date</th>
-                  <th className="text-center text-gray-700 font-semibold">View</th>
+                  <th className="text-center text-gray-700 font-semibold">Total</th>
+                  <th className="text-center text-gray-700 font-semibold">Admin</th>
                 </tr>
               </thead>
               <tbody>
                 {bookings.length > 0 ? (
-                  bookings.map((booking, index) => {
-                    const formatDate = (dateStr) => {
-                      if (!dateStr) return 'N/A';
-                      const date = new Date(dateStr);
-                      if (isNaN(date)) return 'N/A';
-                      return `${String(date.getDate()).padStart(2, '0')}-${String(date.getMonth() + 1).padStart(2, '0')}-${date.getFullYear()}`;
-                    };
-
-                    return (
-                      <tr key={booking.id} className="border-b border-gray-300 hover:bg-gray-50">
-                        <td className="text-center text-gray-800">{index + 1}</td>
-                        <td className="p-2 text-center text-gray-800">{booking.order_id}</td>
-                        <td className="p-2 text-center text-gray-800">{booking.customer_name}</td>
-                        <td className="p-2 text-center text-gray-800">{booking.phone_number}</td>
-                        <td className="p-2 text-center text-gray-800">{booking.district}</td>
-                        <td className="p-2 text-center text-gray-800">{booking.state}</td>
-                        <td className="p-2 text-center text-gray-800">{formatDate(booking.created_at)}</td>
-                        <td className="p-3 text-center">
-                          <button
-                            onClick={() => generatePDF(booking)}
-                            className="flex items-center px-4 py-2 text-sm text-gray-700 hover:bg-gray-300"
-                          >
-                            <FaDownload className="mr-2" />
-                            Download
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })
+                  bookings.map((booking, index) => (
+                    <tr key={booking.id} className="border-b border-gray-300 hover:bg-gray-50">
+                      <td className="p-2 text-center text-gray-800">{index + 1}</td>
+                      <td className="p-2 text-center text-gray-800">{booking.order_id}</td>
+                      <td className="p-2 text-center text-gray-800">{booking.customer_name}</td>
+                      <td className="p-2 text-center text-gray-800">Rs.{booking.total}</td>
+                      <td className="p-2 text-center text-gray-800">{booking.admin_username || 'N/A'}</td>
+                    </tr>
+                  ))
                 ) : (
                   <tr>
-                    <td colSpan="8" className="p-4 text-center text-gray-600">
+                    <td colSpan="5" className="p-4 text-center text-gray-600">
                       No bookings found
                     </td>
                   </tr>

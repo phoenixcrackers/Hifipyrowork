@@ -11,6 +11,10 @@ export default function Sidebar() {
     { name: 'Report', path: '/report', icon: <FaChartBar className="mr-2" /> },
     { name: 'Direct Customer', path: '/direct-customer', icon: <FaUsers className="mr-2" /> },
     { name: 'Direct Enquiry', path: '/direct-enquiry', icon: <FaShoppingCart className="mr-2" /> },
+    { name: 'Dispatch', path: '/dispatch', icon: <FaShoppingCart className="mr-2" /> },
+    { name: 'Ledger', path: '/ledger', icon: <FaShoppingCart className="mr-2" /> },
+    { name: 'Tracking', path: '/tracking', icon: <FaShoppingCart className="mr-2" /> },
+    { name: 'Pending Payments', path: '/pending', icon: <FaShoppingCart className="mr-2" /> },
   ];
 
   const toggleSidebar = () => {
