@@ -117,44 +117,44 @@ export default function Tracking() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
       <Sidebar />
       <Logout />
       <div className="flex-1 flex items-top justify-center onefifty:ml-[20%] hundred:ml-[15%] p-6">
         <div className="w-full max-w-5xl">
-          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">Tracking</h1>
-          {error && <div className="bg-red-100 p-2 mb-4 text-red-700 rounded">{error}</div>}
+          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 dark:text-gray-100">Tracking</h1>
+          {error && <div className="bg-red-100 dark:bg-red-900 p-2 mb-4 text-red-700 dark:text-red-300 rounded">{error}</div>}
           {bookings.length === 0 ? (
-            <p className="text-center text-gray-600">No bookings available</p>
+            <p className="text-center text-gray-600 dark:text-gray-400">No bookings available</p>
           ) : (
             <>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                 {currentBookings.map(booking => (
                   <div
                     key={booking.id}
-                    className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200"
+                    className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200 dark:border-gray-600"
                   >
-                    <h2 className="text-xl font-semibold text-gray-800 mb-4">Order {booking.order_id}</h2>
+                    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100 mb-4">Order {booking.order_id}</h2>
                     <div className="space-y-2">
-                      <p className="text-gray-600">
+                      <p className="text-gray-600 dark:text-gray-400">
                         <span className="font-medium">Customer:</span> {booking.customer_name}
                       </p>
-                      <p className="text-gray-600">
+                      <p className="text-gray-600 dark:text-gray-400">
                         <span className="font-medium">Total:</span> Rs.{(parseFloat(booking.total) || 0).toFixed(2)}
                       </p>
-                      <p className="text-gray-600">
+                      <p className="text-gray-600 dark:text-gray-400">
                         <span className="font-medium">Amount Paid:</span> Rs.{(parseFloat(booking.amount_paid) || 0).toFixed(2)}
                       </p>
-                      <p className="text-gray-600">
+                      <p className="text-gray-600 dark:text-gray-400">
                         <span className="font-medium">Balance:</span> Rs.{getBalance(booking).toFixed(2)}
                       </p>
-                      <p className="text-gray-600">
+                      <p className="text-gray-600 dark:text-gray-400">
                         <span className="font-medium">Status:</span> {booking.status}
                       </p>
                       <div className="mt-4">
                         <select
                           onChange={(e) => handleStatusChange(booking.id, e.target.value)}
-                          className="p-2 border rounded w-full text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          className="p-2 border border-gray-300 dark:border-gray-600 rounded w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
                           value={selectedBooking?.id === booking.id ? 'paid' : ''}
                         >
                           <option value="">Change Status</option>
@@ -173,7 +173,7 @@ export default function Tracking() {
                 <button
                   onClick={handlePrevious}
                   disabled={currentPage === 1}
-                  className={`px-4 py-2 rounded text-white ${currentPage === 1 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                  className={`px-4 py-2 rounded text-white ${currentPage === 1 ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600'}`}
                 >
                   Previous
                 </button>
@@ -182,7 +182,7 @@ export default function Tracking() {
                     <button
                       key={page}
                       onClick={() => handlePageChange(page)}
-                      className={`px-3 py-1 rounded ${currentPage === page ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                      className={`px-3 py-1 rounded ${currentPage === page ? 'bg-blue-600 dark:bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'}`}
                     >
                       {page}
                     </button>
@@ -191,7 +191,7 @@ export default function Tracking() {
                 <button
                   onClick={handleNext}
                   disabled={currentPage === totalPages}
-                  className={`px-4 py-2 rounded text-white ${currentPage === totalPages ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                  className={`px-4 py-2 rounded text-white ${currentPage === totalPages ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600'}`}
                 >
                   Next
                 </button>
@@ -202,16 +202,16 @@ export default function Tracking() {
       </div>
 
       {isModalOpen && selectedBooking && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-4">Update Payment - Order {selectedBooking.order_id}</h2>
-            {error && <div className="bg-red-100 p-2 mb-4 text-red-700">{error}</div>}
-            <p>Total: Rs.{(parseFloat(selectedBooking.total) || 0).toFixed(2)}</p>
-            <p>Remaining Balance: Rs.{getBalance(selectedBooking).toFixed(2)}</p>
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">Update Payment - Order {selectedBooking.order_id}</h2>
+            {error && <div className="bg-red-100 dark:bg-red-900 p-2 mb-4 text-red-700 dark:text-red-300">{error}</div>}
+            <p className="text-gray-900 dark:text-gray-100">Total: Rs.{(parseFloat(selectedBooking.total) || 0).toFixed(2)}</p>
+            <p className="text-gray-900 dark:text-gray-100">Remaining Balance: Rs.{getBalance(selectedBooking).toFixed(2)}</p>
             <select
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
-              className="p-2 border mb-4 w-full"
+              className="p-2 border border-gray-300 dark:border-gray-600 mb-4 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
             >
               <option value="">Select Payment Method</option>
               <option value="cash">Cash</option>
@@ -222,7 +222,7 @@ export default function Tracking() {
               value={amountPaid}
               onChange={(e) => setAmountPaid(e.target.value)}
               placeholder="Amount Paid"
-              className="p-2 border mb-4 w-full"
+              className="p-2 border border-gray-300 dark:border-gray-600 mb-4 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
               required
               min="0"
               max={getBalance(selectedBooking)}
@@ -230,7 +230,7 @@ export default function Tracking() {
             <select
               value={selectedAdmin}
               onChange={(e) => setSelectedAdmin(e.target.value)}
-              className="p-2 border mb-4 w-full"
+              className="p-2 border border-gray-300 dark:border-gray-600 mb-4 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
             >
               <option value="">Select Admin</option>
               {admins.map(admin => (
@@ -240,13 +240,13 @@ export default function Tracking() {
             <div className="flex justify-end gap-4">
               <button
                 onClick={closeModal}
-                className="bg-gray-500 text-white p-2 rounded"
+                className="bg-gray-500 dark:bg-gray-400 text-white p-2 rounded hover:bg-gray-600 dark:hover:bg-gray-500"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmPayment}
-                className="bg-blue-600 text-white p-2 rounded"
+                className="bg-blue-600 dark:bg-blue-500 text-white p-2 rounded hover:bg-blue-700 dark:hover:bg-blue-600"
               >
                 Confirm Payment
               </button>

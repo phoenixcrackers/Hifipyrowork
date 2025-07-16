@@ -80,29 +80,29 @@ export default function Report() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
       <Sidebar />
       <Logout />
       <div className="flex-1 flex items-top justify-center onefifty:ml-[20%] hundred:ml-[15%]">
         <div className="w-full max-w-5xl p-6">
-          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 mobile:text-2xl">Report</h1>
+          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 dark:text-gray-100 mobile:text-2xl">Report</h1>
 
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-6 py-3 rounded-lg mb-6 text-center shadow-md">
+            <div className="bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-300 px-6 py-3 rounded-lg mb-6 text-center shadow-md">
               {error}
             </div>
           )}
 
-          <div className="flex justify-end mb-4">
+          <div className="flex justify-center mb-4">
             <button
               onClick={exportToExcel}
-              className="bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md mr-2"
+              className="bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md mr-2"
             >
               Export to Excel
             </button>
             <button
               onClick={generatePDF}
-              className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md"
+              className="bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-lg shadow-md"
             >
               <FaDownload className="mr-2 inline" /> Download PDF
             </button>
@@ -114,21 +114,21 @@ export default function Report() {
                 {currentCards.map((booking, index) => (
                   <div
                     key={booking.id}
-                    className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
+                    className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-300 dark:border-gray-600"
                   >
-                    <h2 className="text-lg font-semibold text-gray-800 mb-2">
+                    <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100 mb-2">
                       Order ID: {booking.order_id || 'N/A'}
                     </h2>
-                    <p className="text-gray-600">
+                    <p className="text-gray-600 dark:text-gray-400">
                       <span className="font-medium">Sl. No:</span> {indexOfFirstCard + index + 1}
                     </p>
-                    <p className="text-gray-600">
+                    <p className="text-gray-600 dark:text-gray-400">
                       <span className="font-medium">Customer Name:</span> {booking.customer_name || 'N/A'}
                     </p>
-                    <p className="text-gray-600">
+                    <p className="text-gray-600 dark:text-gray-400">
                       <span className="font-medium">Total:</span> Rs.{booking.total || '0.00'}
                     </p>
-                    <p className="text-gray-600">
+                    <p className="text-gray-600 dark:text-gray-400">
                       <span className="font-medium">Admin:</span> {booking.admin_username || 'N/A'}
                     </p>
                   </div>
@@ -142,11 +142,11 @@ export default function Report() {
                     {[...Array(totalPages)].map((_, i) => (
                       <button
                         key={i + 1}
-                        onClick={() => handlePageChange(i +1)}
+                        onClick={() => handlePageChange(i + 1)}
                         className={`px-4 py-2 rounded-lg ${
                           currentPage === i + 1
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                            ? 'bg-blue-600 dark:bg-blue-500 text-white'
+                            : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600'
                         }`}
                       >
                         {i + 1}
@@ -157,7 +157,7 @@ export default function Report() {
               )}
             </>
           ) : (
-            <div className="text-center text-gray-600 p-4">
+            <div className="text-center text-gray-600 dark:text-gray-400 p-4">
               No bookings found
             </div>
           )}

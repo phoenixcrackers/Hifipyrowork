@@ -95,39 +95,39 @@ export default function PendingPayments() {
   };
 
   return (
-    <div className="flex min-h-screen bg-gray-100">
+    <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
       <Sidebar />
       <Logout />
       <div className="flex-1 flex items-top justify-center onefifty:ml-[20%] hundred:ml-[15%]">
         <div className="w-full max-w-5xl p-6">
-          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">Pending Transactions</h1>
-          {error && <div className="bg-red-100 p-2 mb-4 text-red-700">{error}</div>}
+          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 dark:text-gray-100">Pending Transactions</h1>
+          {error && <div className="bg-red-100 dark:bg-red-900 p-2 mb-4 text-red-700 dark:text-red-300">{error}</div>}
           <div className="overflow-x-auto">
             <table className="w-full border-collapse">
               <thead>
-                <tr className="bg-gray-200">
-                  <th className="p-2 text-center">Order ID</th>
-                  <th className="p-2 text-center">Customer Name</th>
-                  <th className="p-2 text-center">Total</th>
-                  <th className="p-2 text-center">Amount Paid</th>
-                  <th className="p-2 text-center">Balance</th>
-                  <th className="p-2 text-center">Status</th>
-                  <th className="p-2 text-center">Action</th>
+                <tr className="bg-gray-200 dark:bg-gray-700">
+                  <th className="p-2 text-center text-gray-900 dark:text-gray-100">Order ID</th>
+                  <th className="p-2 text-center text-gray-900 dark:text-gray-100">Customer Name</th>
+                  <th className="p-2 text-center text-gray-900 dark:text-gray-100">Total</th>
+                  <th className="p-2 text-center text-gray-900 dark:text-gray-100">Amount Paid</th>
+                  <th className="p-2 text-center text-gray-900 dark:text-gray-100">Balance</th>
+                  <th className="p-2 text-center text-gray-900 dark:text-gray-100">Status</th>
+                  <th className="p-2 text-center text-gray-900 dark:text-gray-100">Action</th>
                 </tr>
               </thead>
               <tbody>
                 {pendingBookings.map(booking => (
-                  <tr key={booking.id} className="border-b hover:bg-gray-50">
-                    <td className="p-2 text-center">{booking.order_id}</td>
-                    <td className="p-2 text-center">{booking.customer_name}</td>
-                    <td className="p-2 text-center">Rs.{booking.total || '0.00'}</td>
-                    <td className="p-2 text-center">Rs.{booking.amount_paid || '0.00'}</td>
-                    <td className="p-2 text-center">Rs.{getBalance(booking).toFixed(2)}</td>
-                    <td className="p-2 text-center">{booking.status}</td>
+                  <tr key={booking.id} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                    <td className="p-2 text-center text-gray-900 dark:text-gray-100">{booking.order_id}</td>
+                    <td className="p-2 text-center text-gray-900 dark:text-gray-100">{booking.customer_name}</td>
+                    <td className="p-2 text-center text-gray-900 dark:text-gray-100">Rs.{booking.total || '0.00'}</td>
+                    <td className="p-2 text-center text-gray-900 dark:text-gray-100">Rs.{booking.amount_paid || '0.00'}</td>
+                    <td className="p-2 text-center text-gray-900 dark:text-gray-100">Rs.{getBalance(booking).toFixed(2)}</td>
+                    <td className="p-2 text-center text-gray-900 dark:text-gray-100">{booking.status}</td>
                     <td className="p-2 text-center">
                       <button
                         onClick={() => handlePayment(booking.id)}
-                        className="bg-blue-600 text-white p-2 rounded"
+                        className="bg-blue-600 dark:bg-blue-500 text-white p-2 rounded hover:bg-blue-700 dark:hover:bg-blue-600"
                       >
                         Make Payment
                       </button>
@@ -141,15 +141,15 @@ export default function PendingPayments() {
       </div>
 
       {isModalOpen && selectedBooking && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-4">Make Payment - Order {selectedBooking.order_id}</h2>
-            {error && <div className="bg-red-100 p-2 mb-4 text-red-700">{error}</div>}
-            <p>Remaining Balance: Rs.{getBalance(selectedBooking).toFixed(2)}</p>
+        <div className="fixed inset-0 bg-black/50 dark:bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">Make Payment - Order {selectedBooking.order_id}</h2>
+            {error && <div className="bg-red-100 dark:bg-red-900 p-2 mb-4 text-red-700 dark:text-red-300">{error}</div>}
+            <p className="text-gray-900 dark:text-gray-100">Remaining Balance: Rs.{getBalance(selectedBooking).toFixed(2)}</p>
             <select
               value={paymentMethod}
               onChange={(e) => setPaymentMethod(e.target.value)}
-              className="p-2 border mb-4 w-full"
+              className="p-2 border border-gray-300 dark:border-gray-600 mb-4 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             >
               <option value="">Select Payment Method</option>
               <option value="cash">Cash</option>
@@ -160,7 +160,7 @@ export default function PendingPayments() {
               value={amountPaid}
               onChange={(e) => setAmountPaid(e.target.value)}
               placeholder="Amount Paid"
-              className="p-2 border mb-4 w-full"
+              className="p-2 border border-gray-300 dark:border-gray-600 mb-4 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
               required
               min="0"
               max={getBalance(selectedBooking)}
@@ -168,7 +168,7 @@ export default function PendingPayments() {
             <select
               value={selectedAdmin}
               onChange={(e) => setSelectedAdmin(e.target.value)}
-              className="p-2 border mb-4 w-full"
+              className="p-2 border border-gray-300 dark:border-gray-600 mb-4 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
             >
               <option value="">Select Admin</option>
               {admins.map(admin => (
@@ -178,13 +178,13 @@ export default function PendingPayments() {
             <div className="flex justify-end gap-4">
               <button
                 onClick={closeModal}
-                className="bg-gray-500 text-white p-2 rounded"
+                className="bg-gray-500 dark:bg-gray-400 text-white p-2 rounded hover:bg-gray-600 dark:hover:bg-gray-500"
               >
                 Cancel
               </button>
               <button
                 onClick={confirmPayment}
-                className="bg-blue-600 text-white p-2 rounded"
+                className="bg-blue-600 dark:bg-blue-500 text-white p-2 rounded hover:bg-blue-700 dark:hover:bg-blue-600"
               >
                 Confirm Payment
               </button>

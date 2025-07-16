@@ -56,10 +56,40 @@ const Book = () => {
   });
 
   const styles = {
-    card: { background: "linear-gradient(135deg, rgba(255,255,255,0.4), rgba(224,242,254,0.3), rgba(186,230,253,0.2))", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.1), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(2,132,199,0.1)" },
-    button: { background: "linear-gradient(135deg, rgba(2,132,199,0.9), rgba(14,165,233,0.95))", backdropFilter: "blur(15px)", border: "1px solid rgba(125,211,252,0.4)", boxShadow: "0 15px 35px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.2)" },
-    input: { background: "linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,249,255,0.6))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.3)" },
-    modal: { background: "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(240,249,255,0.9))", backdropFilter: "blur(20px)", border: "1px solid rgba(2,132,199,0.3)", boxShadow: "0 25px 45px rgba(2,132,199,0.2)" }
+    card: { 
+      background: "linear-gradient(135deg, rgba(255,255,255,0.4), rgba(224,242,254,0.3), rgba(186,230,253,0.2))", 
+      backgroundDark: "linear-gradient(135deg, rgba(31,41,55,0.6), rgba(55,65,81,0.5), rgba(75,85,99,0.4))",
+      backdropFilter: "blur(20px)", 
+      border: "1px solid rgba(2,132,199,0.3)", 
+      borderDark: "1px solid rgba(59,130,246,0.4)",
+      boxShadow: "0 25px 45px rgba(2,132,199,0.1), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(2,132,199,0.1)",
+      boxShadowDark: "0 25px 45px rgba(59,130,246,0.2), inset 0 1px 0 rgba(255,255,255,0.1), inset 0 -1px 0 rgba(59,130,246,0.2)"
+    },
+    button: { 
+      background: "linear-gradient(135deg, rgba(2,132,199,0.9), rgba(14,165,233,0.95))", 
+      backgroundDark: "linear-gradient(135deg, rgba(59,130,246,0.9), rgba(37,99,235,0.95))",
+      backdropFilter: "blur(15px)", 
+      border: "1px solid rgba(125,211,252,0.4)", 
+      borderDark: "1px solid rgba(147,197,253,0.4)",
+      boxShadow: "0 15px 35px rgba(2,132,199,0.3), inset 0 1px 0 rgba(255,255,255,0.2)",
+      boxShadowDark: "0 15px 35px rgba(59,130,246,0.4), inset 0 1px 0 rgba(255,255,255,0.1)"
+    },
+    input: { 
+      background: "linear-gradient(135deg, rgba(255,255,255,0.8), rgba(240,249,255,0.6))", 
+      backgroundDark: "linear-gradient(135deg, rgba(55,65,81,0.8), rgba(75,85,99,0.6))",
+      backdropFilter: "blur(10px)", 
+      border: "1px solid rgba(2,132,199,0.3)", 
+      borderDark: "1px solid rgba(59,130,246,0.4)"
+    },
+    modal: { 
+      background: "linear-gradient(135deg, rgba(255,255,255,0.95), rgba(240,249,255,0.9))", 
+      backgroundDark: "linear-gradient(135deg, rgba(31,41,55,0.95), rgba(55,65,81,0.9))",
+      backdropFilter: "blur(20px)", 
+      border: "1px solid rgba(2,132,199,0.3)", 
+      borderDark: "1px solid rgba(59,130,246,0.4)",
+      boxShadow: "0 25px 45px rgba(2,132,199,0.2)",
+      boxShadowDark: "0 25px 45px rgba(59,130,246,0.3)"
+    }
   };
 
   const formatPrice = price => {
@@ -94,7 +124,7 @@ const Book = () => {
           states,
           customer: {
             customer_name: user.username,
-            company_name: user.companyname, // Fixed typo here
+            company_name: user.companyname,
             license_number: user.licencenumber || "",
             address: user.address,
             district: user.district,
@@ -255,91 +285,134 @@ const Book = () => {
   const filteredProducts = useMemo(() => state.products.filter(p => !state.search || p.productname.toLowerCase().includes(state.search.toLowerCase()) || p.serial_number.toLowerCase().includes(state.search.toLowerCase())), [state.products, state.search]);
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
       <motion.div className="fixed left-4 top-4">
-        <p className="text-4xl font-bold text-sky-600">Hifi Pyro Park</p>
+        <p className="text-4xl font-bold text-sky-600 dark:text-sky-400">Hifi Pyro Park</p>
       </motion.div>
       <motion.button
         onClick={handleLogout}
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.95 }}
-        className="fixed top-4 right-4 z-50 text-white rounded-full shadow-xl w-12 h-12 flex items-center justify-center text-xl"
-        style={styles.button}
+        className="fixed top-4 right-4 z-50 text-white dark:text-gray-200 rounded-full shadow-xl w-12 h-12 flex items-center justify-center text-xl"
+        style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
       >
         <FaSignOutAlt />
       </motion.button>
-      {(state.isCartOpen || state.showForm) && <div className="fixed inset-0 bg-black/40 z-30" onClick={() => setState(s => ({ ...s, isCartOpen: false, showForm: false, isEditing: false }))} />}
+      {(state.isCartOpen || state.showForm) && <div className="fixed inset-0 bg-black/40 dark:bg-black/60 z-30" onClick={() => setState(s => ({ ...s, isCartOpen: false, showForm: false, isEditing: false }))} />}
       {state.showSuccess && (
         <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
           <BigFireworkAnimation />
           <motion.div className="flex flex-col items-center gap-4 z-10" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} transition={{ duration: 0.5, delay: 0.5 }}>
-            <motion.h2 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-green-600 via-emerald-500 to-green-700 bg-clip-text text-transparent text-center" style={{ textShadow: "0 0 20px rgba(34,197,94,0.8)" }} animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: 1, delay: 0.5 }}>
+            <motion.h2 className="text-4xl sm:text-5xl font-bold bg-gradient-to-r from-green-600 via-emerald-500 to-green-700 dark:from-green-500 dark:via-emerald-400 dark:to-green-600 bg-clip-text text-transparent text-center" style={{ textShadow: "0 0 20px rgba(34,197,94,0.8)" }} animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: 1, delay: 0.5 }}>
               {state.isEditing ? 'Updated' : 'Booked'}
             </motion.h2>
           </motion.div>
         </motion.div>
       )}
-      {state.showError && <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ duration: 0.5 }}><div className="bg-red-500 text-white text-lg font-semibold rounded-xl py-6 px-4 max-w-md mx-auto text-center shadow-lg">{state.error}</div></motion.div>}
+      {state.showError && <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ duration: 0.5 }}><div className="bg-red-500 dark:bg-red-600 text-white dark:text-gray-100 text-lg font-semibold rounded-xl py-6 px-4 max-w-md mx-auto text-center shadow-lg">{state.error}</div></motion.div>}
       <main className="relative pt-5 mobile:px-5 mobile:pt-20 max-w-7xl mx-auto">
-        <section className="rounded-xl px-4 py-3 shadow-inner flex justify-between flex-wrap gap-4 text-sm sm:text-base border border-sky-300 bg-gradient-to-br from-sky-400/80 to-sky-600/90 text-white font-semibold">
+        <section className="rounded-xl px-4 py-3 shadow-inner flex justify-between flex-wrap gap-4 text-sm sm:text-base border border-sky-300 dark:border-sky-600 bg-gradient-to-br from-sky-400/80 to-sky-600/90 dark:from-sky-600/80 dark:to-sky-800/90 text-white dark:text-gray-100 font-semibold">
           <div>Net: ₹{totals.net}</div><div>Save: ₹{totals.save}</div><div className="font-bold">Total: ₹{totals.total}</div>
         </section>
         <div className="flex justify-center gap-4 mb-8 mt-8">
-          <input type="text" placeholder="Search by name or serial number" value={state.search} onChange={e => setState(s => ({ ...s, search: e.target.value }))} className="rounded-xl px-4 w-80 h-12 text-lg text-slate-800 font-medium focus:ring-2 focus:ring-blue-400 focus:border-transparent" style={styles.input} />
+          <input 
+            type="text" 
+            placeholder="Search by name or serial number" 
+            value={state.search} 
+            onChange={e => setState(s => ({ ...s, search: e.target.value }))} 
+            className="rounded-xl px-4 w-80 h-12 text-lg text-slate-800 dark:text-gray-100 font-medium focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800" 
+            style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
+          />
         </div>
         <div className="mt-12 mb-10">
           <div className="flex justify-between items-center mb-5">
-            <h2 className="text-3xl text-sky-500 font-semibold capitalize border-b-4 border-sky-500 pb-2">Gift Box Dealers</h2>
+            <h2 className="text-3xl text-sky-500 dark:text-sky-300 font-semibold capitalize border-b-4 border-sky-500 dark:border-sky-300 pb-2">Gift Box Dealers</h2>
             <button
               onClick={() => setState(s => ({ ...s, showForm: true, isEditing: true }))}
-              className="text-sm text-white font-semibold py-2 px-4 rounded-xl"
-              style={styles.button}
+              className="text-sm text-white dark:text-gray-100 font-semibold py-2 px-4 rounded-xl"
+              style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
             >
               Edit Profile
             </button>
           </div>
           {filteredProducts.length === 0 ? (
-            <p className="text-lg text-center text-gray-600 font-medium">No products available.</p>
+            <p className="text-lg text-center text-gray-600 dark:text-gray-400 font-medium">No products available.</p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
               {filteredProducts.map(p => {
                 const price = parseFloat(p.price), disc = price * (p.discount / 100), finalPrice = p.discount > 0 ? formatPrice(price - disc) : formatPrice(price), count = state.cart[p.serial_number] || 0;
                 return (
-                  <motion.div key={p.serial_number} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -8, scale: 1.02 }} className="group relative rounded-3xl p-6 overflow-hidden cursor-pointer" style={styles.card}>
-                    {p.discount > 0 && <div className="absolute left-2 top-2 bg-red-500 text-white text-md font-bold px-2 py-1 rounded-br-xl rounded-tl-xl mobile:text-xs mobile:px-1.5 mobile:py-0.5">{p.discount}%</div>}
-                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.3), transparent 50%, rgba(14,165,233,0.2))" }} />
+                  <motion.div 
+                    key={p.serial_number} 
+                    initial={{ opacity: 0, y: 20 }} 
+                    animate={{ opacity: 1, y: 0 }} 
+                    whileHover={{ y: -8, scale: 1.02 }} 
+                    className="group relative rounded-3xl p-6 overflow-hidden cursor-pointer bg-white dark:bg-gray-800"
+                    style={{ 
+                      background: styles.card.background, 
+                      backgroundDark: styles.card.backgroundDark, 
+                      border: styles.card.border, 
+                      borderDark: styles.card.borderDark, 
+                      boxShadow: styles.card.boxShadow, 
+                      boxShadowDark: styles.card.boxShadowDark 
+                    }}
+                  >
+                    {p.discount > 0 && <div className="absolute left-2 top-2 bg-red-500 dark:bg-red-600 text-white dark:text-gray-100 text-md font-bold px-2 py-1 rounded-br-xl rounded-tl-xl mobile:text-xs mobile:px-1.5 mobile:py-0.5">{p.discount}%</div>}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100" style={{ background: "linear-gradient(135deg, rgba(2,132,199,0.3), transparent 50%, rgba(14,165,233,0.2))", backgroundDark: "linear-gradient(135deg, rgba(59,130,246,0.4), transparent 50%, rgba(37,99,235,0.3))" }} />
                     <div className="relative z-10 mobile:mt-2">
-                      <p className="text-lg mobile:text-sm sm:text-base font-bold text-slate-800 group-hover:text-slate-900 line-clamp-2 mb-2">{p.productname}</p>
+                      <p className="text-lg mobile:text-sm sm:text-base font-bold text-slate-800 dark:text-gray-100 group-hover:text-slate-900 dark:group-hover:text-gray-200 line-clamp-2 mb-2">{p.productname}</p>
                       <div className="space-y-1 mb-4">
                         {p.discount > 0 ? (
-                          <><p className="text-sm text-gray-500 line-through">MRP: ₹{formatPrice(price)}</p><p className="text-xl sm:text-lg font-bold text-sky-500 group-hover:text-sky-700">₹{finalPrice} / {p.per}</p></>
+                          <>
+                            <p className="text-sm text-gray-500 dark:text-gray-400 line-through">MRP: ₹{formatPrice(price)}</p>
+                            <p className="text-xl sm:text-lg font-bold text-sky-500 dark:text-sky-300 group-hover:text-sky-700 dark:group-hover:text-sky-400">₹{finalPrice} / {p.per}</p>
+                          </>
                         ) : (
-                          <p className="text-xl sm:text-lg font-bold text-sky-500 group-hover:text-sky-700">₹{finalPrice} / {p.per}</p>
+                          <p className="text-xl sm:text-lg font-bold text-sky-500 dark:text-sky-300 group-hover:text-sky-700 dark:group-hover:text-sky-400">₹{finalPrice} / {p.per}</p>
                         )}
                       </div>
                       {p.image && (
-                        <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,249,255,0.4))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}>
+                        <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden" style={{ background: styles.card.background, backgroundDark: styles.card.backgroundDark, backdropFilter: styles.card.backdropFilter, border: styles.card.border, borderDark: styles.card.borderDark }}>
                           <img src={p.image || "/placeholder.svg"} alt={p.productname} className="w-full h-full object-contain p-2" />
                         </div>
                       )}
                       <div className="relative min-h-[3rem] flex items-end justify-end">
                         <AnimatePresence mode="wait">
                           {count > 0 ? (
-                            <motion.div key="qty-controls" initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} transition={{ duration: 0.3, ease: "easeOut" }} className="flex items-center justify-between w-full rounded-full p-2" style={styles.button}>
-                              <motion.button onClick={() => removeFromCart(p)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="w-8 h-8 rounded-full bg-white/20 text-white font-bold text-lg flex items-center justify-center"><FaMinus /></motion.button>
-                              <motion.span key={count} initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} transition={{ duration: 0.2 }} className="text-white font-bold text-lg px-4">{count}</motion.span>
-                              <motion.button onClick={() => addToCart(p)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="w-8 h-8 rounded-full bg-white/20 text-white font-bold text-lg flex items-center justify-center"><FaPlus /></motion.button>
+                            <motion.div 
+                              key="qty-controls" 
+                              initial={{ scale: 0.8, opacity: 0 }} 
+                              animate={{ scale: 1, opacity: 1 }} 
+                              exit={{ scale: 0.8, opacity: 0 }} 
+                              transition={{ duration: 0.3, ease: "easeOut" }} 
+                              className="flex items-center justify-between w-full rounded-full p-2"
+                              style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark }}
+                            >
+                              <motion.button onClick={() => removeFromCart(p)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="w-8 h-8 rounded-full bg-white/20 dark:bg-gray-900/20 text-white dark:text-gray-100 font-bold text-lg flex items-center justify-center"><FaMinus /></motion.button>
+                              <motion.span key={count} initial={{ scale: 1.5, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.5, opacity: 0 }} transition={{ duration: 0.2 }} className="text-white dark:text-gray-100 font-bold text-lg px-4">{count}</motion.span>
+                              <motion.button onClick={() => addToCart(p)} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} className="w-8 h-8 rounded-full bg-white/20 dark:bg-gray-900/20 text-white dark:text-gray-100 font-bold text-lg flex items-center justify-center"><FaPlus /></motion.button>
                             </motion.div>
                           ) : (
-                            <motion.button key="add-btn" onClick={() => addToCart(p)} initial={{ scale: 0.8, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.8, opacity: 0 }} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }} transition={{ duration: 0.3 }} className="w-12 h-12 rounded-full text-white font-bold text-xl flex items-center justify-center relative overflow-hidden" style={styles.button}>
-                              <motion.div className="absolute inset-0 rounded-full" initial={{ scale: 0, opacity: 0.5 }} whileTap={{ scale: 2, opacity: 0 }} transition={{ duration: 0.4 }} style={{ background: "rgba(255,255,255,0.3)" }} />
+                            <motion.button 
+                              key="add-btn" 
+                              onClick={() => addToCart(p)} 
+                              initial={{ scale: 0.8, opacity: 0 }} 
+                              animate={{ scale: 1, opacity: 1 }} 
+                              exit={{ scale: 0.8, opacity: 0 }} 
+                              whileHover={{ scale: 1.1 }} 
+                              whileTap={{ scale: 0.9 }} 
+                              transition={{ duration: 0.3 }} 
+                              className="w-12 h-12 rounded-full text-white dark:text-gray-100 font-bold text-xl flex items-center justify-center relative overflow-hidden"
+                              style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark }}
+                            >
+                              <motion.div className="absolute inset-0 rounded-full" initial={{ scale: 0, opacity: 0.5 }} whileTap={{ scale: 2, opacity: 0 }} transition={{ duration: 0.4 }} style={{ background: "rgba(255,255,255,0.3)", backgroundDark: "rgba(59,130,246,0.3)" }} />
                               <FaPlus />
                             </motion.button>
                           )}
                         </AnimatePresence>
                       </div>
                     </div>
-                    <div className="absolute bottom-0 left-0 right-0 h-px opacity-60" style={{ background: "linear-gradient(90deg, transparent, rgba(2,132,199,0.6), transparent)" }} />
+                    <div className="absolute bottom-0 left-0 right-0 h-px opacity-60" style={{ background: "linear-gradient(90deg, transparent, rgba(2,132,199,0.6), transparent)", backgroundDark: "linear-gradient(90deg, transparent, rgba(59,130,246,0.6), transparent)" }} />
                   </motion.div>
                 );
               })}
@@ -347,38 +420,50 @@ const Book = () => {
           )}
         </div>
       </main>
-      <motion.button onClick={() => setState(s => ({ ...s, isCartOpen: true }))} whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.95 }} className={`fixed bottom-6 right-6 z-50 text-white rounded-full shadow-xl w-16 h-16 flex items-center justify-center text-2xl ${state.isCartOpen || state.showForm ? "hidden" : ""}`} style={styles.button}>
+      <motion.button 
+        onClick={() => setState(s => ({ ...s, isCartOpen: true }))} 
+        whileHover={{ scale: 1.1 }} 
+        whileTap={{ scale: 0.95 }} 
+        className={`fixed bottom-6 right-6 z-50 text-white dark:text-gray-100 rounded-full shadow-xl w-16 h-16 flex items-center justify-center text-2xl ${state.isCartOpen || state.showForm ? "hidden" : ""}`}
+        style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+      >
         <FaShoppingCart />
-        {Object.keys(state.cart).length > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-2 -right-2 bg-red-500 text-white text-xs w-6 h-6 flex items-center justify-center rounded-full font-bold">{Object.values(state.cart).reduce((a, b) => a + b, 0)}</motion.span>}
+        {Object.keys(state.cart).length > 0 && <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-2 -right-2 bg-red-500 dark:bg-red-600 text-white dark:text-gray-100 text-xs w-6 h-6 flex items-center justify-center rounded-full font-bold">{Object.values(state.cart).reduce((a, b) => a + b, 0)}</motion.span>}
       </motion.button>
-      <motion.aside initial={false} animate={{ x: state.isCartOpen ? 0 : 320 }} transition={{ duration: 0.4, ease: "easeInOut" }} className="fixed top-0 right-0 w-80 h-full shadow-xl border-l z-50" style={styles.modal}>
-        <div className="flex justify-between items-center p-4 border-b border-sky-200">
-          <h3 className="text-lg font-bold text-sky-800">Your Cart</h3>
-          <button onClick={() => setState(s => ({ ...s, isCartOpen: false }))} className="text-gray-600 hover:text-red-500 text-xl cursor-pointer">×</button>
+      <motion.aside 
+        initial={false} 
+        animate={{ x: state.isCartOpen ? 0 : 320 }} 
+        transition={{ duration: 0.4, ease: "easeInOut" }} 
+        className="fixed top-0 right-0 w-80 h-full shadow-xl border-l border-sky-200 dark:border-gray-700 bg-white dark:bg-gray-800 z-50"
+        style={{ background: styles.modal.background, backgroundDark: styles.modal.backgroundDark, border: styles.modal.border, borderDark: styles.modal.borderDark, boxShadow: styles.modal.boxShadow, boxShadowDark: styles.modal.boxShadowDark }}
+      >
+        <div className="flex justify-between items-center p-4 border-b bg-white dark:bg-gray-800 border-sky-200 dark:border-gray-700">
+          <h3 className="text-lg font-bold text-sky-800 dark:text-sky-200">Your Cart</h3>
+          <button onClick={() => setState(s => ({ ...s, isCartOpen: false }))} className="text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 text-xl cursor-pointer">×</button>
         </div>
-        <div className="p-4 overflow-y-auto h-[calc(100%-120px)] space-y-4">
+        <div className="p-4 overflow-y-auto h-[calc(100%-120px)] space-y-4 bg-white dark:bg-gray-800">
           {Object.keys(state.cart).length === 0 ? (
-            <p className="text-gray-500 text-sm">Your cart is empty.</p>
+            <p className="text-gray-500 dark:text-gray-400 text-sm">Your cart is empty.</p>
           ) : (
             Object.entries(state.cart).map(([serial, qty]) => {
               const p = state.products.find(p => p.serial_number === serial);
               if (!p) return null;
               const disc = (p.price * p.discount) / 100, priceAfterDisc = formatPrice(p.price - disc);
               return (
-                <motion.div key={serial} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 border-b pb-3 border-sky-100">
+                <motion.div key={serial} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 border-b pb-3 border-sky-100 dark:border-gray-700">
                   {p.image && (
-                    <div className="w-16 h-16 rounded-xl overflow-hidden" style={{ background: "linear-gradient(135deg, rgba(255,255,255,0.6), rgba(240,249,255,0.4))", backdropFilter: "blur(10px)", border: "1px solid rgba(2,132,199,0.2)" }}>
+                    <div className="w-16 h-16 rounded-xl overflow-hidden" style={{ background: styles.card.background, backgroundDark: styles.card.backgroundDark, backdropFilter: styles.card.backdropFilter, border: styles.card.border, borderDark: styles.card.borderDark }}>
                       <img src={p.image || "/placeholder.svg"} alt={p.productname} className="w-full h-full object-contain p-1" />
                     </div>
                   )}
                   <div className="flex-1">
-                    <p className="text-sm font-semibold text-slate-800">{p.productname}</p>
-                    <p className="text-sm text-sky-700 font-bold">₹{priceAfterDisc} x {qty}</p>
-                    <p className="text-xs text-slate-600">Stock: {p.stock}</p>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-gray-100">{p.productname}</p>
+                    <p className="text-sm text-sky-700 dark:text-sky-300 font-bold">₹{priceAfterDisc} x {qty}</p>
+                    <p className="text-xs text-slate-600 dark:text-gray-400">Stock: {p.stock}</p>
                     <div className="flex items-center gap-2 mt-2">
-                      <button onClick={() => removeFromCart(p)} className="w-7 h-7 text-sm text-white rounded-full flex items-center justify-center" style={{ background: styles.button.background }}><FaMinus /></button>
-                      <span className="text-sm font-medium px-2">{qty}</span>
-                      <button onClick={() => addToCart(p)} className="w-7 h-7 text-sm text-white rounded-full flex items-center justify-center" style={{ background: styles.button.background }}><FaPlus /></button>
+                      <button onClick={() => removeFromCart(p)} className="w-7 h-7 text-sm text-white dark:text-gray-100 rounded-full flex items-center justify-center" style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark }}><FaMinus /></button>
+                      <span className="text-sm font-medium px-2 text-slate-800 dark:text-gray-100">{qty}</span>
+                      <button onClick={() => addToCart(p)} className="w-7 h-7 text-sm text-white dark:text-gray-100 rounded-full flex items-center justify-center" style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark }}><FaPlus /></button>
                     </div>
                   </div>
                 </motion.div>
@@ -386,19 +471,19 @@ const Book = () => {
             })
           )}
         </div>
-        <div className="p-4 border-t border-sky-200 sticky bottom-0 space-y-4" style={styles.modal}>
-          <div className="text-sm text-slate-700 space-y-1"><p>Net: ₹{totals.net}</p><p>Save: ₹{totals.save}</p><p className="font-bold text-sky-800 text-lg">Total: ₹{totals.total}</p></div>
+        <div className="p-4 border-t border-sky-200 dark:border-gray-700 sticky bottom-0 space-y-4 bg-white dark:bg-gray-800" style={{ background: styles.modal.background, backgroundDark: styles.modal.backgroundDark, border: styles.modal.border, borderDark: styles.modal.borderDark, boxShadow: styles.modal.boxShadow, boxShadowDark: styles.modal.boxShadowDark }}>
+          <div className="text-sm bg-white dark:bg-gray-800 p-2 text-slate-700 dark:text-gray-300 space-y-1"><p>Net: ₹{totals.net}</p><p>Save: ₹{totals.save}</p><p className="font-bold text-sky-800 dark:text-sky-200 text-lg">Total: ₹{totals.total}</p></div>
           <div className="flex gap-2">
-            <button onClick={() => setState(s => ({ ...s, cart: {} }))} className="flex-1 text-white text-sm font-semibold py-3 rounded-xl" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.9), rgba(220,38,38,0.9))", boxShadow: "0 5px 15px rgba(239,68,68,0.3)" }}>Clear Cart</button>
-            <button onClick={() => setState(s => ({ ...s, isCartOpen: false, showForm: true }))} className="flex-1 text-white text-sm font-semibold py-3 rounded-xl" style={{ background: styles.button.background, boxShadow: "0 5px 15px rgba(2,132,199,0.3)" }}>Proceed to Details</button>
+            <button onClick={() => setState(s => ({ ...s, cart: {} }))} className="flex-1 text-white dark:text-gray-100 text-sm font-semibold py-3 rounded-xl" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.9), rgba(220,38,38,0.9))", backgroundDark: "linear-gradient(135deg, rgba(220,38,38,0.9), rgba(185,28,28,0.9))", boxShadow: "0 5px 15px rgba(239,68,68,0.3)", boxShadowDark: "0 5px 15px rgba(220,38,38,0.4)" }}>Clear Cart</button>
+            <button onClick={() => setState(s => ({ ...s, isCartOpen: false, showForm: true }))} className="flex-1 text-white dark:text-gray-100 text-sm font-semibold py-3 rounded-xl" style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}>Proceed to Details</button>
           </div>
         </div>
       </motion.aside>
       {state.showForm && (
-        <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ duration: 0.3 }} className="fixed inset-0 flex items-center justify-center z-50">
-          <div className="w-full max-w-md mx-4 p-6 rounded-xl" style={styles.modal}>
-            <h2 className="text-lg font-bold text-sky-800 mb-4">{state.isEditing ? 'Edit Profile' : 'Customer Details'}</h2>
-            <form onSubmit={state.isEditing ? handleEditSubmit : handleFormSubmit} className="space-y-4">
+        <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ duration: 0.3 }} className="fixed inset-0 flex items-center justify-center z-50 ">
+          <div className="w-full max-w-md mx-4 p-6 rounded-xl  bg-white dark:bg-gray-800" style={{ background: styles.modal.background, backgroundDark: styles.modal.backgroundDark, border: styles.modal.border, borderDark: styles.modal.borderDark, boxShadow: styles.modal.boxShadow, boxShadowDark: styles.modal.boxShadowDark }}>
+            <h2 className="text-lg font-bold text-sky-800 dark:text-sky-800 mb-4">{state.isEditing ? 'Edit Profile' : 'Customer Details'}</h2>
+            <div className="space-y-4">
               {[
                 { label: "Customer Name", key: "customer_name", type: "text", placeholder: "Enter name", required: true, disabled: true },
                 { label: "Company Name", key: "company_name", type: "text", placeholder: "Enter company name", required: true, disabled: !state.isEditing },
@@ -406,32 +491,78 @@ const Book = () => {
                 { label: "Address", key: "address", type: "textarea", placeholder: "Enter address", required: true, disabled: !state.isEditing },
                 { label: "State", key: "state", type: "select", options: state.states, required: true, disabled: !state.isEditing },
                 { label: "District", key: "district", type: "select", options: state.districts, required: true, disabled: !state.isEditing || !state.customer.state },
-                { label: "Mobile Number", key: "mobile_number", type: "text", placeholder: "Enter mobile number", required: true, disabled: !state.isEditing },
+                { label: "Mobile Number", key: "customer_name", type: "text", placeholder: "Enter mobile number", required: true, disabled: !state.isEditing },
                 { label: "Email", key: "email", type: "email", placeholder: "Enter email", required: true, disabled: !state.isEditing }
               ].map(({ label, key, type, placeholder, required, options, disabled }) => (
                 <div key={key}>
-                  <label className="text-sm font-medium text-gray-700">{label} {required && '*'}</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-700">{label} {required && '*'}</label>
                   {type === "select" ? (
-                    <select value={state.customer[key]} onChange={e => handleInputChange(key, e.target.value)} className="w-full p-2 rounded-md mt-1" style={styles.input} required={required} disabled={disabled}>
-                      <option value="">Select {label}</option>
-                      {options.map(opt => <option key={opt.id || opt.name} value={opt.name}>{opt.name}</option>)}
+                    <select 
+                      value={state.customer[key]} 
+                      onChange={e => handleInputChange(key, e.target.value)} 
+                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
+                      style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark }} 
+                      required={required} 
+                      disabled={disabled}
+                    >
+                      <option value="" className="bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100">Select {label}</option>
+                      {options.map(opt => <option key={opt.id || opt.name} value={opt.name} className="bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100">{opt.name}</option>)}
                     </select>
                   ) : type === "textarea" ? (
-                    <textarea value={state.customer[key]} onChange={e => handleInputChange(key, e.target.value)} placeholder={placeholder} className="w-full p-2 rounded-md mt-1" style={styles.input} required={required} disabled={disabled} />
+                    <textarea 
+                      value={state.customer[key]} 
+                      onChange={e => handleInputChange(key, e.target.value)} 
+                      placeholder={placeholder} 
+                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
+                      style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark }} 
+                      required={required} 
+                      disabled={disabled} 
+                    />
                   ) : (
-                    <input type={type} value={state.customer[key]} onChange={e => handleInputChange(key, e.target.value)} placeholder={placeholder} className="w-full p-2 rounded-md mt-1" style={styles.input} required={required} disabled={disabled} />
+                    <input 
+                      type={type} 
+                      value={state.customer[key]} 
+                      onChange={e => handleInputChange(key, e.target.value)} 
+                      placeholder={placeholder} 
+                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
+                      style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark }} 
+                      required={required} 
+                      disabled={disabled} 
+                    />
                   )}
                 </div>
               ))}
               <div className="flex gap-2">
-                <button type="button" onClick={() => setState(s => ({ ...s, showForm: false, isEditing: false }))} className="flex-1 text-white text-sm font-semibold py-3 rounded-xl" style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.9), rgba(220,38,38,0.9))", boxShadow: "0 5px 15px rgba(239,68,68,0.3)" }}>Cancel</button>
-                <button type="submit" className="flex-1 text-white text-sm font-semibold py-3 rounded-xl" style={styles.button}>{state.isEditing ? 'Update Profile' : 'Confirm Booking'}</button>
+                <button 
+                  type="button" 
+                  onClick={() => setState(s => ({ ...s, showForm: false, isEditing: false }))} 
+                  className="flex-1 text-white dark:text-gray-100 text-sm font-semibold py-3 rounded-xl" 
+                  style={{ background: "linear-gradient(135deg, rgba(239,68,68,0.9), rgba(220,38,38,0.9))", backgroundDark: "linear-gradient(135deg, rgba(220,38,38,0.9), rgba(185,28,28,0.9))", boxShadow: "0 5px 15px rgba(239,68,68,0.3)", boxShadowDark: "0 5px 15px rgba(220,38,38,0.4)" }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  onClick={state.isEditing ? handleEditSubmit : handleFormSubmit}
+                  className="flex-1 text-white dark:text-gray-100 text-sm font-semibold py-3 rounded-xl" 
+                  style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
+                >
+                  {state.isEditing ? 'Update Profile' : 'Confirm Booking'}
+                </button>
               </div>
-            </form>
+            </div>
           </div>
         </motion.div>
       )}
-      <style>{`.line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }`}</style>
+      <style>{`
+        .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        [style*="backgroundDark"] { background: var(--bg, ${styles.card.background}); }
+        [style*="backgroundDark"][data-dark] { --bg: ${styles.card.backgroundDark}; }
+        [style*="borderDark"] { border: var(--border, ${styles.card.border}); }
+        [style*="borderDark"][data-dark] { --border: ${styles.card.borderDark}; }
+        [style*="boxShadowDark"] { box-shadow: var(--shadow, ${styles.card.boxShadow}); }
+        [style*="boxShadowDark"][data-dark] { --shadow: ${styles.card.boxShadowDark}; }
+      `}</style>
     </div>
   );
 };

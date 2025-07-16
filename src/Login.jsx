@@ -118,10 +118,10 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 flex items-center justify-center p-4">
       {showError && (
         <motion.div 
-          className="fixed top-4 left-1/2 -translate-x-1/2 bg-red-500 text-white text-lg font-semibold rounded-xl py-4 px-6 max-w-md text-center shadow-lg"
+          className="fixed top-4 left-1/2 -translate-x-1/2 bg-red-500 dark:bg-red-700 text-white dark:text-gray-100 text-lg font-semibold rounded-xl py-4 px-6 max-w-md text-center shadow-lg"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: -20 }}
@@ -135,13 +135,13 @@ const Login = () => {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
       >
-        <h2 className="text-2xl font-bold text-sky-800 mb-6 text-center">
+        <h2 className="text-2xl font-bold text-sky-800 dark:text-sky-300 mb-6 text-center">
           {isRegister ? 'Register' : 'Login'}
         </h2>
         <div className="mb-4 text-center">
           <button 
             onClick={() => setIsRegister(!isRegister)}
-            className="text-sky-600 hover:text-sky-800"
+            className="text-sky-600 dark:text-sky-400 hover:text-sky-800 dark:hover:text-sky-300"
           >
             {isRegister ? 'Already have an account? Login' : 'Need an account? Register'}
           </button>
@@ -162,7 +162,7 @@ const Login = () => {
               ] : [])
             ].map(({ label, key, type, placeholder = `Enter ${label.toLowerCase()}`, required, options, disabled, hasEyeIcon }) => (
               <div key={key} className={type === 'textarea' && isRegister ? 'md:col-span-2' : ''}>
-                <label className="text-sm font-medium text-gray-700">{label} {required && '*'}</label>
+                <label className="text-sm font-medium text-gray-700 dark:text-gray-100">{label} {required && '*'}</label>
                 <div style={hasEyeIcon ? styles.inputContainer : {}}>
                   {type === 'select' ? (
                     <select 
