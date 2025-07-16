@@ -280,7 +280,7 @@ export default function Dealers() {
           {currentProducts.length === 0 ? (
             <p className="text-lg text-center text-gray-600 dark:text-gray-400 font-medium">No products found</p>
           ) : (
-            <div className="grid grid-cols-1 mobile:grid-cols-2 onefifty:grid-cols-3 gap-6">
+            <div className="grid mobile:grid-cols-1 onefifty:grid-cols-3 gap-6">
               {currentProducts.map(product => {
                 const productKey = `${productType}-${product.id}`;
                 return (
