@@ -40,7 +40,7 @@ export default function Ledger() {
         <div className="w-full max-w-5xl p-6">
           <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">Ledger</h1>
           {error && <div className="bg-red-100 p-2 mb-4 text-red-700">{error}</div>}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
             {admins.map(admin => (
               <div key={admin.id} className="bg-white p-4 rounded shadow">
                 <h3>Name: {admin.username}</h3>

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FaBox, FaChartBar, FaBars, FaTimes,  FaStackExchange, FaUsers, FaShoppingCart} from 'react-icons/fa';
+import { FaBox, FaChartBar, FaBars, FaTimes,  FaStackExchange, FaUsers, FaShoppingCart, FaLocationArrow, FaTruck, FaDollarSign, FaMoneyCheck} from 'react-icons/fa';
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -8,13 +8,13 @@ export default function Sidebar() {
   const navItems = [
     { name: 'Inventory', path: '/dealers', icon: <FaBox className="mr-2" /> },
     { name: 'Stock', path: '/stock', icon: <FaStackExchange className="mr-2" /> },
-    { name: 'Report', path: '/report', icon: <FaChartBar className="mr-2" /> },
     { name: 'Direct Customer', path: '/direct-customer', icon: <FaUsers className="mr-2" /> },
     { name: 'Direct Enquiry', path: '/direct-enquiry', icon: <FaShoppingCart className="mr-2" /> },
-    { name: 'Dispatch', path: '/dispatch', icon: <FaShoppingCart className="mr-2" /> },
-    { name: 'Ledger', path: '/ledger', icon: <FaShoppingCart className="mr-2" /> },
-    { name: 'Tracking', path: '/tracking', icon: <FaShoppingCart className="mr-2" /> },
-    { name: 'Pending Payments', path: '/pending', icon: <FaShoppingCart className="mr-2" /> },
+    { name: 'Tracking', path: '/tracking', icon: <FaLocationArrow className="mr-2" /> },
+    { name: 'Pending Payments', path: '/pending', icon: <FaMoneyCheck className="mr-2" /> },
+    { name: 'Dispatch', path: '/dispatch', icon: <FaTruck className="mr-2" /> },
+    { name: 'Ledger', path: '/ledger', icon: <FaDollarSign className="mr-2" /> },
+    { name: 'Report', path: '/report', icon: <FaChartBar className="mr-2" /> },
   ];
 
   const toggleSidebar = () => {

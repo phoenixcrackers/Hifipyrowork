@@ -13,7 +13,6 @@ export default function PendingPayments() {
   const [selectedAdmin, setSelectedAdmin] = useState('');
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [transactions, setTransactions] = useState([]);
 
   const fetchPendingBookings = async () => {
     try {
@@ -37,15 +36,6 @@ export default function PendingPayments() {
     }
   };
 
-  const fetchTransactions = async (bookingId) => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/tracking/transactions/${bookingId}`);
-      setTransactions(response.data);
-    } catch (err) {
-      setError('Failed to fetch transactions');
-    }
-  };
-
   useEffect(() => {
     fetchPendingBookings();
     fetchAdmins();
@@ -57,7 +47,6 @@ export default function PendingPayments() {
     setPaymentMethod('');
     setAmountPaid('');
     setSelectedAdmin('');
-    fetchTransactions(bookingId);
     setIsModalOpen(true);
   };
 
@@ -83,7 +72,6 @@ export default function PendingPayments() {
       };
       await axios.patch(`${API_BASE_URL}/api/tracking/bookings/${selectedBooking.id}/status`, payload);
       fetchPendingBookings();
-      fetchTransactions(selectedBooking.id);
       setSelectedBooking(null);
       setIsModalOpen(false);
       setError('');
@@ -97,7 +85,6 @@ export default function PendingPayments() {
     setPaymentMethod('');
     setAmountPaid('');
     setSelectedAdmin('');
-    setTransactions([]);
     setIsModalOpen(false);
   };
 
@@ -188,33 +175,6 @@ export default function PendingPayments() {
                 <option key={admin.id} value={admin.id}>{admin.username} ({admin.bank_name})</option>
               ))}
             </select>
-            <h3 className="text-lg font-semibold mt-4">Transaction History</h3>
-            <div className="max-h-40 overflow-y-auto mb-4">
-              {transactions.length > 0 ? (
-                <table className="w-full border-collapse">
-                  <thead>
-                    <tr className="bg-gray-200">
-                      <th className="p-2 text-center">Amount</th>
-                      <th className="p-2 text-center">Method</th>
-                      <th className="p-2 text-center">Admin</th>
-                      <th className="p-2 text-center">Date</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {transactions.map((tx, index) => (
-                      <tr key={index} className="border-b">
-                        <td className="p-2 text-center">Rs.{tx.amount_paid.toFixed(2)}</td>
-                        <td className="p-2 text-center">{tx.payment_method}</td>
-                        <td className="p-2 text-center">{tx.admin_id ? admins.find(a => a.id === tx.admin_id)?.username || 'N/A' : 'N/A'}</td>
-                        <td className="p-2 text-center">{new Date(tx.transaction_date).toLocaleString()}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p>No transactions yet.</p>
-              )}
-            </div>
             <div className="flex justify-end gap-4">
               <button
                 onClick={closeModal}

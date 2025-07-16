@@ -11,6 +11,8 @@ import Logout from './Logout';
 export default function Report() {
   const [bookings, setBookings] = useState([]);
   const [error, setError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const cardsPerPage = 9;
 
   const fetchBookings = async () => {
     try {
@@ -28,11 +30,11 @@ export default function Report() {
     return () => clearInterval(interval);
   }, []);
 
-  const generatePDF = (booking) => {
+  const generatePDF = () => {
     const doc = new jsPDF();
     const formatDate = (dateStr) => (dateStr ? new Date(dateStr).toLocaleDateString('en-GB') : 'N/A');
 
-    doc.setFontSize(22).text('Fun with Crackers Report', 10, 20);
+    doc.setFontSize(22).text('Hifi Pyro Park Report', 10, 20);
     doc.setFontSize(12);
 
     const tableData = bookings.map((b, index) => [
@@ -67,6 +69,16 @@ export default function Report() {
     XLSX.writeFile(workbook, 'Report.xlsx');
   };
 
+  // Pagination logic
+  const indexOfLastCard = currentPage * cardsPerPage;
+  const indexOfFirstCard = indexOfLastCard - cardsPerPage;
+  const currentCards = bookings.slice(indexOfFirstCard, indexOfLastCard);
+  const totalPages = Math.ceil(bookings.length / cardsPerPage);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar />
@@ -92,42 +104,63 @@ export default function Report() {
               onClick={generatePDF}
               className="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg shadow-md"
             >
-              <FaDownload className="mr-2" /> Download PDF
+              <FaDownload className="mr-2 inline" /> Download PDF
             </button>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="text-center text-gray-700 font-semibold">Sl. No</th>
-                  <th className="text-center text-gray-700 font-semibold">Order ID</th>
-                  <th className="text-center text-gray-700 font-semibold">Customer Name</th>
-                  <th className="text-center text-gray-700 font-semibold">Total</th>
-                  <th className="text-center text-gray-700 font-semibold">Admin</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.length > 0 ? (
-                  bookings.map((booking, index) => (
-                    <tr key={booking.id} className="border-b border-gray-300 hover:bg-gray-50">
-                      <td className="p-2 text-center text-gray-800">{index + 1}</td>
-                      <td className="p-2 text-center text-gray-800">{booking.order_id}</td>
-                      <td className="p-2 text-center text-gray-800">{booking.customer_name}</td>
-                      <td className="p-2 text-center text-gray-800">Rs.{booking.total}</td>
-                      <td className="p-2 text-center text-gray-800">{booking.admin_username || 'N/A'}</td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan="5" className="p-4 text-center text-gray-600">
-                      No bookings found
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+          {bookings.length > 0 ? (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {currentCards.map((booking, index) => (
+                  <div
+                    key={booking.id}
+                    className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow"
+                  >
+                    <h2 className="text-lg font-semibold text-gray-800 mb-2">
+                      Order ID: {booking.order_id || 'N/A'}
+                    </h2>
+                    <p className="text-gray-600">
+                      <span className="font-medium">Sl. No:</span> {indexOfFirstCard + index + 1}
+                    </p>
+                    <p className="text-gray-600">
+                      <span className="font-medium">Customer Name:</span> {booking.customer_name || 'N/A'}
+                    </p>
+                    <p className="text-gray-600">
+                      <span className="font-medium">Total:</span> Rs.{booking.total || '0.00'}
+                    </p>
+                    <p className="text-gray-600">
+                      <span className="font-medium">Admin:</span> {booking.admin_username || 'N/A'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex justify-center mt-6">
+                  <div className="flex gap-2">
+                    {[...Array(totalPages)].map((_, i) => (
+                      <button
+                        key={i + 1}
+                        onClick={() => handlePageChange(i +1)}
+                        className={`px-4 py-2 rounded-lg ${
+                          currentPage === i + 1
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                        }`}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center text-gray-600 p-4">
+              No bookings found
+            </div>
+          )}
         </div>
       </div>
     </div>
