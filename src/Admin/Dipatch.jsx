@@ -12,6 +12,8 @@ export default function Dispatch() {
   const [transportContact, setTransportContact] = useState('');
   const [lrNumber, setLrNumber] = useState('');
   const [error, setError] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const cardsPerPage = 9;
 
   const fetchBookings = async () => {
     try {
@@ -41,6 +43,10 @@ export default function Dispatch() {
       await axios.patch(`${API_BASE_URL}/api/tracking/bookings/${selectedBooking.id}/status`, payload);
       fetchBookings();
       setSelectedBooking(null);
+      setTransportType('');
+      setTransportName('');
+      setTransportContact('');
+      setLrNumber('');
       setError('');
     } catch (err) {
       setError('Failed to update status');
@@ -53,38 +59,106 @@ export default function Dispatch() {
     return total - paid >= 0 ? total - paid : 0;
   };
 
+  // Pagination logic
+  const totalPages = Math.ceil(bookings.length / cardsPerPage);
+  const indexOfLastCard = currentPage * cardsPerPage;
+  const indexOfFirstCard = indexOfLastCard - cardsPerPage;
+  const currentBookings = bookings.slice(indexOfFirstCard, indexOfLastCard);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
+  const handlePrevious = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar />
       <Logout />
-      <div className="flex-1 flex items-top justify-center onefifty:ml-[20%] hundred:ml-[15%]">
-        <div className="w-full max-w-5xl p-6">
+      <div className="flex-1 flex items-top justify-center onefifty:ml-[20%] hundred:ml-[15%] p-6">
+        <div className="w-full max-w-5xl">
           <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">Dispatch</h1>
-          {error && <div className="bg-red-100 p-2 mb-4 text-red-700">{error}</div>}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {bookings.map(booking => (
-              <div key={booking.id} className="bg-white p-4 rounded shadow">
-                <h3>Order ID: {booking.order_id}</h3>
-                <p>Customer: {booking.customer_name}</p>
-                <p>Total: Rs.{booking.total || '0.00'}</p>
-                <p>Amount Paid: Rs.{booking.amount_paid || '0.00'}</p>
-                <p>Balance: Rs.{getBalance(booking).toFixed(2)}</p>
+          {error && <div className="bg-red-100 p-2 mb-4 text-red-700 rounded">{error}</div>}
+          {bookings.length === 0 ? (
+            <p className="text-center text-gray-600">No paid bookings available</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {currentBookings.map(booking => (
+                  <div
+                    key={booking.id}
+                    className="bg-white p-4 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200"
+                  >
+                    <h3 className="text-lg font-semibold text-gray-800">Order {booking.order_id}</h3>
+                    <div className="space-y-2 mt-2">
+                      <p className="text-gray-600">
+                        <span className="font-medium">Customer:</span> {booking.customer_name}
+                      </p>
+                      <p className="text-gray-600">
+                        <span className="font-medium">Total:</span> Rs.{(parseFloat(booking.total) || 0).toFixed(2)}
+                      </p>
+                      <p className="text-gray-600">
+                        <span className="font-medium">Amount Paid:</span> Rs.{(parseFloat(booking.amount_paid) || 0).toFixed(2)}
+                      </p>
+                      <p className="text-gray-600">
+                        <span className="font-medium">Balance:</span> Rs.{getBalance(booking).toFixed(2)}
+                      </p>
+                      <button
+                        onClick={() => setSelectedBooking(booking)}
+                        className="bg-blue-600 text-white p-2 rounded mt-2 w-full hover:bg-blue-700 transition-colors"
+                      >
+                        Dispatch
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-6 flex justify-center items-center gap-4">
                 <button
-                  onClick={() => setSelectedBooking(booking)}
-                  className="bg-blue-600 text-white p-2 rounded mt-2"
+                  onClick={handlePrevious}
+                  disabled={currentPage === 1}
+                  className={`px-4 py-2 rounded text-white ${currentPage === 1 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
                 >
-                  Dispatch
+                  Previous
+                </button>
+                <div className="flex gap-2">
+                  {Array.from({ length: totalPages }, (_, index) => index + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`px-3 py-1 rounded ${currentPage === page ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={handleNext}
+                  disabled={currentPage === totalPages}
+                  className={`px-4 py-2 rounded text-white ${currentPage === totalPages ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                >
+                  Next
                 </button>
               </div>
-            ))}
-          </div>
+            </>
+          )}
           {selectedBooking && (
-            <div className="mt-4 p-4 bg-gray-100 rounded">
-              <h2>Dispatch Order: {selectedBooking.order_id}</h2>
+            <div className="mt-4 p-4 bg-gray-100 rounded-lg shadow-md">
+              <h2 className="text-xl font-bold mb-4">Dispatch Order: {selectedBooking.order_id}</h2>
               <select
                 value={transportType}
                 onChange={(e) => setTransportType(e.target.value)}
-                className="p-1 border mb-2"
+                className="p-2 border rounded mb-2 w-full text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">Select Transport Type</option>
                 <option value="own">Own</option>
@@ -97,30 +171,38 @@ export default function Dispatch() {
                     value={transportName}
                     onChange={(e) => setTransportName(e.target.value)}
                     placeholder="Transport Name"
-                    className="p-1 border mb-2 w-full"
+                    className="p-2 border rounded mb-2 w-full text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <input
                     type="text"
                     value={transportContact}
                     onChange={(e) => setTransportContact(e.target.value)}
                     placeholder="Contact Number"
-                    className="p-1 border mb-2 w-full"
+                    className="p-2 border rounded mb-2 w-full text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                   <input
                     type="text"
                     value={lrNumber}
                     onChange={(e) => setLrNumber(e.target.value)}
                     placeholder="LR Number"
-                    className="p-1 border mb-2 w-full"
+                    className="p-2 border rounded mb-2 w-full text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </>
               )}
-              <button
-                onClick={handleDispatch}
-                className="bg-green-600 text-white p-2 rounded"
-              >
-                Confirm Dispatch
-              </button>
+              <div className="flex justify-end gap-4">
+                <button
+                  onClick={() => setSelectedBooking(null)}
+                  className="bg-gray-500 text-white p-2 rounded hover:bg-gray-600 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDispatch}
+                  className="bg-green-600 text-white p-2 rounded hover:bg-green-700 transition-colors"
+                >
+                  Confirm Dispatch
+                </button>
+              </div>
             </div>
           )}
         </div>

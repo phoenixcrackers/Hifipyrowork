@@ -43,7 +43,7 @@ export default function Ledger() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {admins.map(admin => (
               <div key={admin.id} className="bg-white p-4 rounded shadow">
-                <h3>{admin.username}</h3>
+                <h3>Name: {admin.username}</h3>
                 <p>Total: Rs.{admin.total || '0.00'}</p>
                 <button
                   onClick={() => { setSelectedAdmin(admin); fetchTransactions(admin.id); }}

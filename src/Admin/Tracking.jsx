@@ -13,6 +13,8 @@ export default function Tracking() {
   const [selectedAdmin, setSelectedAdmin] = useState('');
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const cardsPerPage = 9;
 
   const fetchBookings = async () => {
     try {
@@ -92,55 +94,110 @@ export default function Tracking() {
     return total - paid >= 0 ? total - paid : 0;
   };
 
+  // Pagination logic
+  const totalPages = Math.ceil(bookings.length / cardsPerPage);
+  const indexOfLastCard = currentPage * cardsPerPage;
+  const indexOfFirstCard = indexOfLastCard - cardsPerPage;
+  const currentBookings = bookings.slice(indexOfFirstCard, indexOfLastCard);
+
+  const handlePageChange = (pageNumber) => {
+    setCurrentPage(pageNumber);
+  };
+
+  const handlePrevious = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const handleNext = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-100">
       <Sidebar />
       <Logout />
-      <div className="flex-1 flex items-top justify-center onefifty:ml-[20%] hundred:ml-[15%]">
-        <div className="w-full max-w-5xl p-6">
+      <div className="flex-1 flex items-top justify-center onefifty:ml-[20%] hundred:ml-[15%] p-6">
+        <div className="w-full max-w-5xl">
           <h1 className="text-4xl font-bold mb-8 text-center text-gray-800">Tracking</h1>
-          {error && <div className="bg-red-100 p-2 mb-4 text-red-700">{error}</div>}
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead>
-                <tr className="bg-gray-200">
-                  <th className="p-2 text-center">Order ID</th>
-                  <th className="p-2 text-center">Customer Name</th>
-                  <th className="p-2 text-center">Total</th>
-                  <th className="p-2 text-center">Amount Paid</th>
-                  <th className="p-2 text-center">Balance</th>
-                  <th className="p-2 text-center">Status</th>
-                  <th className="p-2 text-center">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {bookings.map(booking => (
-                  <tr key={booking.id} className="border-b hover:bg-gray-50">
-                    <td className="p-2 text-center">{booking.order_id}</td>
-                    <td className="p-2 text-center">{booking.customer_name}</td>
-                    <td className="p-2 text-center">Rs.{(parseFloat(booking.total) || 0).toFixed(2)}</td>
-                    <td className="p-2 text-center">Rs.{(parseFloat(booking.amount_paid) || 0).toFixed(2)}</td>
-                    <td className="p-2 text-center">Rs.{getBalance(booking).toFixed(2)}</td>
-                    <td className="p-2 text-center">{booking.status}</td>
-                    <td className="p-2 text-center">
-                      <select
-                        onChange={(e) => handleStatusChange(booking.id, e.target.value)}
-                        className="p-1 border"
-                        value={selectedBooking?.id === booking.id ? 'paid' : ''}
-                      >
-                        <option value="">Change Status</option>
-                        {['paid', 'dispatched', 'delivered'].map(status => (
-                          <option key={status} value={status} disabled={booking.status === 'delivered'}>
-                            {status}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
-                  </tr>
+          {error && <div className="bg-red-100 p-2 mb-4 text-red-700 rounded">{error}</div>}
+          {bookings.length === 0 ? (
+            <p className="text-center text-gray-600">No bookings available</p>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                {currentBookings.map(booking => (
+                  <div
+                    key={booking.id}
+                    className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow border border-gray-200"
+                  >
+                    <h2 className="text-xl font-semibold text-gray-800 mb-4">Order {booking.order_id}</h2>
+                    <div className="space-y-2">
+                      <p className="text-gray-600">
+                        <span className="font-medium">Customer:</span> {booking.customer_name}
+                      </p>
+                      <p className="text-gray-600">
+                        <span className="font-medium">Total:</span> Rs.{(parseFloat(booking.total) || 0).toFixed(2)}
+                      </p>
+                      <p className="text-gray-600">
+                        <span className="font-medium">Amount Paid:</span> Rs.{(parseFloat(booking.amount_paid) || 0).toFixed(2)}
+                      </p>
+                      <p className="text-gray-600">
+                        <span className="font-medium">Balance:</span> Rs.{getBalance(booking).toFixed(2)}
+                      </p>
+                      <p className="text-gray-600">
+                        <span className="font-medium">Status:</span> {booking.status}
+                      </p>
+                      <div className="mt-4">
+                        <select
+                          onChange={(e) => handleStatusChange(booking.id, e.target.value)}
+                          className="p-2 border rounded w-full text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          value={selectedBooking?.id === booking.id ? 'paid' : ''}
+                        >
+                          <option value="">Change Status</option>
+                          {['paid', 'dispatched', 'delivered'].map(status => (
+                            <option key={status} value={status} disabled={booking.status === 'delivered'}>
+                              {status}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+              <div className="mt-6 flex justify-center items-center gap-4">
+                <button
+                  onClick={handlePrevious}
+                  disabled={currentPage === 1}
+                  className={`px-4 py-2 rounded text-white ${currentPage === 1 ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                >
+                  Previous
+                </button>
+                <div className="flex gap-2">
+                  {Array.from({ length: totalPages }, (_, index) => index + 1).map(page => (
+                    <button
+                      key={page}
+                      onClick={() => handlePageChange(page)}
+                      className={`px-3 py-1 rounded ${currentPage === page ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-700 hover:bg-gray-300'}`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  onClick={handleNext}
+                  disabled={currentPage === totalPages}
+                  className={`px-4 py-2 rounded text-white ${currentPage === totalPages ? 'bg-gray-400 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'}`}
+                >
+                  Next
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
 
