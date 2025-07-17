@@ -91,7 +91,7 @@ export default function Dealers() {
   const [success, setSuccess] = useState('');
   const [toggleStates, setToggleStates] = useState({});
   const [currentPage, setCurrentPage] = useState(1);
-  const [formData, setFormFormData] = useState({
+  const [formData, setFormData] = useState({
     productname: '',
     serial_number: '',
     price: '',
