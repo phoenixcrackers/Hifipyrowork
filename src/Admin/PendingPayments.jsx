@@ -13,6 +13,8 @@ export default function PendingPayments() {
   const [selectedAdmin, setSelectedAdmin] = useState('');
   const [error, setError] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
+const [paymentHistory, setPaymentHistory] = useState([]);
+const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
   const fetchPendingBookings = async () => {
     try {
@@ -26,6 +28,16 @@ export default function PendingPayments() {
       setError('Failed to fetch pending bookings');
     }
   };
+const viewPaymentHistory = async (bookingId) => {
+  try {
+    const response = await axios.get(`${API_BASE_URL}/api/transactions/${bookingId}`)
+
+    setPaymentHistory(response.data);
+    setIsHistoryModalOpen(true);
+  } catch (err) {
+    setError('Failed to fetch payment history');
+  }
+};
 
   const fetchAdmins = async () => {
     try {
@@ -124,74 +136,118 @@ export default function PendingPayments() {
                     <td className="p-2 text-center text-gray-900 dark:text-gray-100">Rs.{booking.amount_paid || '0.00'}</td>
                     <td className="p-2 text-center text-gray-900 dark:text-gray-100">Rs.{getBalance(booking).toFixed(2)}</td>
                     <td className="p-2 text-center text-gray-900 dark:text-gray-100">{booking.status}</td>
-                    <td className="p-2 text-center">
-                      <button
-                        onClick={() => handlePayment(booking.id)}
-                        className="bg-blue-600 dark:bg-blue-500 text-white p-2 rounded hover:bg-blue-700 dark:hover:bg-blue-600"
-                      >
-                        Make Payment
-                      </button>
-                    </td>
+                 <td className="p-2 text-center flex justify-center gap-2">
+                <button
+                  onClick={() => handlePayment(booking.id)}
+                  className="bg-blue-600 dark:bg-blue-500 text-white p-2 rounded hover:bg-blue-700 dark:hover:bg-blue-600"
+                >
+                  Make Payment
+                </button>
+                <button
+                  onClick={() => viewPaymentHistory(booking.id)}
+                  className="bg-green-600 dark:bg-green-500 text-white p-2 rounded hover:bg-green-700 dark:hover:bg-green-600"
+                >
+                  View Details
+                </button>
+              </td>
+
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          {isModalOpen && selectedBooking && (
+            <div className="fixed inset-0 bg-black/50 dark:bg-black/40 flex items-center justify-center z-50">
+              <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md">
+                <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">Make Payment - Order {selectedBooking.order_id}</h2>
+                {error && <div className="bg-red-100 dark:bg-red-900 p-2 mb-4 text-red-700 dark:text-red-300">{error}</div>}
+                <p className="text-gray-900 dark:text-gray-100">Remaining Balance: Rs.{getBalance(selectedBooking).toFixed(2)}</p>
+                <select
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                  className="p-2 border border-gray-300 dark:border-gray-600 mb-4 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="">Select Payment Method</option>
+                  <option value="cash">Cash</option>
+                  <option value="bank">Bank</option>
+                </select>
+                <input
+                  type="number"
+                  value={amountPaid}
+                  onChange={(e) => setAmountPaid(e.target.value)}
+                  placeholder="Amount Paid"
+                  className="p-2 border border-gray-300 dark:border-gray-600 mb-4 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                  required
+                  min="0"
+                  max={getBalance(selectedBooking)}
+                />
+                <select
+                  value={selectedAdmin}
+                  onChange={(e) => setSelectedAdmin(e.target.value)}
+                  className="p-2 border border-gray-300 dark:border-gray-600 mb-4 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
+                >
+                  <option value="">Select Admin</option>
+                  {admins.map(admin => (
+                    <option key={admin.id} value={admin.id}>{admin.username} ({admin.bank_name})</option>
+                  ))}
+                </select>
+                <div className="flex justify-end gap-4">
+                  <button
+                    onClick={closeModal}
+                    className="bg-gray-500 dark:bg-gray-400 text-white p-2 rounded hover:bg-gray-600 dark:hover:bg-gray-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmPayment}
+                    className="bg-blue-600 dark:bg-blue-500 text-white p-2 rounded hover:bg-blue-700 dark:hover:bg-blue-600"
+                  >
+                    Confirm Payment
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {isHistoryModalOpen && (
+      <div className="fixed inset-0 bg-black/50 dark:bg-black/40 flex items-center justify-center z-50">
+    <div className="relative bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-lg">
+          <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">Payment History</h2>
+          <button
+            onClick={() => setIsHistoryModalOpen(false)}
+            className="absolute top-2 right-4 text-gray-700 dark:text-gray-300 text-lg"
+          >
+            ✕
+          </button>
+          {paymentHistory.length === 0 ? (
+            <p className="text-gray-700 dark:text-gray-300">No transactions found.</p>
+          ) : (
+            <table className="w-full border-collapse text-sm mt-4">
+              <thead>
+                <tr className="bg-gray-200 dark:bg-gray-700">
+                  <th className="p-2 text-left text-gray-900 dark:text-gray-100">Date</th>
+                  <th className="p-2 text-left text-gray-900 dark:text-gray-100">Amount</th>
+                  <th className="p-2 text-left text-gray-900 dark:text-gray-100">Method</th>
+                  <th className="p-2 text-left text-gray-900 dark:text-gray-100">Admin ID</th>
+                </tr>
+              </thead>
+              <tbody>
+                {paymentHistory.map((txn, idx) => (
+                  <tr key={idx} className="border-b">
+                    <td className="p-2 text-gray-900 dark:text-gray-100">{new Date(txn.transaction_date).toLocaleString()}</td>
+                    <td className="p-2 text-gray-900 dark:text-gray-100">Rs.{txn.amount_paid}</td>
+                    <td className="p-2 text-gray-900 dark:text-gray-100">{txn.payment_method}</td>
+                    <td className="p-2 text-gray-900 dark:text-gray-100">{txn.admin_id}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
-          </div>
+          )}
         </div>
       </div>
-
-      {isModalOpen && selectedBooking && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/40 flex items-center justify-center z-50">
-          <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg w-full max-w-md">
-            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-100">Make Payment - Order {selectedBooking.order_id}</h2>
-            {error && <div className="bg-red-100 dark:bg-red-900 p-2 mb-4 text-red-700 dark:text-red-300">{error}</div>}
-            <p className="text-gray-900 dark:text-gray-100">Remaining Balance: Rs.{getBalance(selectedBooking).toFixed(2)}</p>
-            <select
-              value={paymentMethod}
-              onChange={(e) => setPaymentMethod(e.target.value)}
-              className="p-2 border border-gray-300 dark:border-gray-600 mb-4 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-            >
-              <option value="">Select Payment Method</option>
-              <option value="cash">Cash</option>
-              <option value="bank">Bank</option>
-            </select>
-            <input
-              type="number"
-              value={amountPaid}
-              onChange={(e) => setAmountPaid(e.target.value)}
-              placeholder="Amount Paid"
-              className="p-2 border border-gray-300 dark:border-gray-600 mb-4 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-              required
-              min="0"
-              max={getBalance(selectedBooking)}
-            />
-            <select
-              value={selectedAdmin}
-              onChange={(e) => setSelectedAdmin(e.target.value)}
-              className="p-2 border border-gray-300 dark:border-gray-600 mb-4 w-full bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-            >
-              <option value="">Select Admin</option>
-              {admins.map(admin => (
-                <option key={admin.id} value={admin.id}>{admin.username} ({admin.bank_name})</option>
-              ))}
-            </select>
-            <div className="flex justify-end gap-4">
-              <button
-                onClick={closeModal}
-                className="bg-gray-500 dark:bg-gray-400 text-white p-2 rounded hover:bg-gray-600 dark:hover:bg-gray-500"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmPayment}
-                className="bg-blue-600 dark:bg-blue-500 text-white p-2 rounded hover:bg-blue-700 dark:hover:bg-blue-600"
-              >
-                Confirm Payment
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+    )}
     </div>
   );
 }

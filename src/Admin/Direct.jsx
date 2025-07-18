@@ -86,7 +86,7 @@ export default function Direct() {
     const customer = customers.find(c => c.id.toString() === selectedCustomer);
     const customerType = customer?.customer_type || 'User';
     try {
-      await axios.post(`${API_BASE_URL}/api/direct/bookings`, {
+      await axios.post(`${API_BASE_URL}/api/dbookings`, {
         customer_id: Number(selectedCustomer),
         order_id: `ORD-${Date.now()}`,
         products: cart,

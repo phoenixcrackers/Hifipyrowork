@@ -10,7 +10,8 @@ export default function Quotation() {
   const [state, setState] = useState({
     customers: [], products: [], quotations: [], cart: [], editCart: [],
     selectedCustomer: '', selectedProduct: null, selectedQuotation: null,
-    error: '', success: '', loading: true, viewModal: false, bookModal: false, pdfError: '', pdfUrl: ''
+    error: '', success: '', loading: true, viewModal: false, bookModal: false, editModal: false, pdfError: '', pdfUrl: '',
+    extraCharges: { tax: 0, pf: 0, minus: 0 }
   });
 
   useEffect(() => {
@@ -43,10 +44,9 @@ export default function Quotation() {
     };
 
     fetchInitialData();
-    fetchQuotations(); // Initial fetch
-    const intervalId = setInterval(fetchQuotations, 10000); // Fetch every 10 seconds
-
-    return () => clearInterval(intervalId); // Cleanup on unmount
+    fetchQuotations();
+    const intervalId = setInterval(fetchQuotations, 10000);
+    return () => clearInterval(intervalId);
   }, []);
 
   const addToCart = () => {
@@ -64,19 +64,51 @@ export default function Quotation() {
     }));
   };
 
-  const updateQuantity = (id, type, quantity, isEdit = false) => {
-    const newQuantity = Math.max(0, Number(quantity) || 0);
+  const addToEditCart = () => {
+    if (!state.selectedProduct) return setState(s => ({ ...s, error: 'Select a product' }));
+    const [id, type] = state.selectedProduct.value.split('-');
+    const product = state.products.find(p => p.id.toString() === id && p.product_type === type);
+    if (!product) return;
+    setState(s => ({
+      ...s,
+      editCart: s.editCart.some(item => item.id === product.id && item.product_type === type)
+        ? s.editCart.map(item => item.id === product.id && item.product_type === type ? { ...item, quantity: item.quantity + 1 } : item)
+        : [...s.editCart, { ...product, quantity: 1 }],
+      selectedProduct: null,
+      error: ''
+    }));
+  };
+
+  const updateQuantityOrDiscount = (id, type, field, value, isEdit = false) => {
+    const newValue = Math.max(0, Number(value) || 0);
+    const validatedValue = field === 'discount' ? Math.min(newValue, 100) : newValue; // Cap discount at 100
     setState(s => ({
       ...s,
       [isEdit ? 'editCart' : 'cart']: s[isEdit ? 'editCart' : 'cart']
-        .map(item => item.id === id && item.product_type === type ? { ...item, quantity: newQuantity } : item)
+        .map(item => item.id === id && item.product_type === type ? { ...item, [field]: validatedValue } : item)
         .filter(item => item.quantity > 0)
     }));
   };
 
-  const removeFromCart = (id, type) => setState(s => ({ ...s, cart: s.cart.filter(item => !(item.id === id && item.product_type === type)) }));
+  const removeFromCart = (id, type, isEdit = false) => setState(s => ({
+    ...s,
+    [isEdit ? 'editCart' : 'cart']: s[isEdit ? 'editCart' : 'cart'].filter(item => !(item.id === id && item.product_type === type))
+  }));
 
-  const calculateTotal = items => items.reduce((sum, item) => sum + (item.price * (1 - item.discount / 100) * item.quantity), 0).toFixed(2);
+  const updateExtraCharges = (field, value) => {
+    setState(s => ({
+      ...s,
+      extraCharges: { ...s.extraCharges, [field]: Math.max(0, Number(value) || 0) }
+    }));
+  };
+
+  const calculateTotal = (items, extraCharges = state.extraCharges) => {
+    let total = items.reduce((sum, item) => sum + (item.price * (1 - item.discount / 100) * item.quantity), 0);
+    total += Number(extraCharges.tax || 0);
+    total += Number(extraCharges.pf || 0);
+    total -= Number(extraCharges.minus || 0);
+    return total.toFixed(2);
+  };
 
   const handleCreateQuotation = async () => {
     if (!state.selectedCustomer) return setState(s => ({ ...s, error: 'Select a customer' }));
@@ -87,16 +119,52 @@ export default function Quotation() {
         customer_id: Number(state.selectedCustomer),
         products: state.cart,
         total: calculateTotal(state.cart),
-        customer_type: customer?.customer_type || 'User'
+        customer_type: customer?.customer_type || 'User',
+        extra_charges: state.extraCharges
       });
       setState(s => ({
-        ...s, cart: [], selectedCustomer: '', selectedProduct: null, quotations: [response.data, ...s.quotations],
-        success: 'Quotation created!', error: ''
+        ...s,
+        cart: [],
+        selectedCustomer: '',
+        selectedProduct: null,
+        extraCharges: { tax: 0, pf: 0, minus: 0 },
+        quotations: [response.data, ...s.quotations],
+        success: 'Quotation created!',
+        error: ''
       }));
       setTimeout(() => setState(s => ({ ...s, success: '' })), 3000);
     } catch (err) {
       console.error('Create quotation error:', err);
       setState(s => ({ ...s, error: 'Failed to create quotation' }));
+    }
+  };
+
+  const handleEditQuotation = async () => {
+    if (!state.editCart.length) return setState(s => ({ ...s, error: 'Cart is empty' }));
+    const total = calculateTotal(state.editCart);
+    if (isNaN(total) || parseFloat(total) <= 0) {
+      return setState(s => ({ ...s, error: 'Invalid total amount' }));
+    }
+    try {
+      const response = await axios.patch(`${API_BASE_URL}/api/quotations/${state.selectedQuotation.est_id}/edit`, {
+        products: state.editCart,
+        total: parseFloat(total),
+        extra_charges: state.extraCharges
+      });
+      setState(s => ({
+        ...s,
+        quotations: s.quotations.map(q => q.est_id === state.selectedQuotation.est_id ? { ...q, products: JSON.stringify(state.editCart), total: parseFloat(total), extra_charges: state.extraCharges } : q),
+        editModal: false,
+        selectedQuotation: null,
+        editCart: [],
+        extraCharges: { tax: 0, pf: 0, minus: 0 },
+        success: 'Quotation updated!',
+        error: ''
+      }));
+      setTimeout(() => setState(s => ({ ...s, success: '' })), 3000);
+    } catch (err) {
+      console.error('Edit quotation error:', err);
+      setState(s => ({ ...s, error: 'Failed to edit quotation' }));
     }
   };
 
@@ -107,18 +175,20 @@ export default function Quotation() {
       return setState(s => ({ ...s, error: 'Invalid total amount' }));
     }
     try {
-      await axios.post(`${API_BASE_URL}/api/quotations/book`, { 
-        est_id: state.selectedQuotation.est_id, 
+      await axios.post(`${API_BASE_URL}/api/quotations/book`, {
+        est_id: state.selectedQuotation.est_id,
         products: state.editCart,
-        total: parseFloat(total)
+        total: parseFloat(total),
+        extra_charges: state.extraCharges
       });
       setState(s => ({
-        ...s, 
+        ...s,
         quotations: s.quotations.map(q => q.est_id === state.selectedQuotation.est_id ? { ...q, status: 'booked' } : q),
-        bookModal: false, 
-        selectedQuotation: null, 
-        editCart: [], 
-        success: 'Booking created!', 
+        bookModal: false,
+        selectedQuotation: null,
+        editCart: [],
+        extraCharges: { tax: 0, pf: 0, minus: 0 },
+        success: 'Booking created!',
         error: ''
       }));
       setTimeout(() => setState(s => ({ ...s, success: '' })), 3000);
@@ -132,8 +202,10 @@ export default function Quotation() {
     try {
       await axios.patch(`${API_BASE_URL}/api/quotations/${est_id}/cancel`);
       setState(s => ({
-        ...s, quotations: s.quotations.map(q => q.est_id === est_id ? { ...q, status: 'canceled' } : q),
-        success: 'Quotation canceled!', error: ''
+        ...s,
+        quotations: s.quotations.map(q => q.est_id === est_id ? { ...q, status: 'canceled' } : q),
+        success: 'Quotation canceled!',
+        error: ''
       }));
       setTimeout(() => setState(s => ({ ...s, success: '' })), 3000);
     } catch (err) {
@@ -142,8 +214,8 @@ export default function Quotation() {
     }
   };
 
-  const openModal = async (q, isBook = false) => {
-    if (!isBook) {
+  const openModal = async (q, modalType = 'view') => {
+    if (modalType === 'view') {
       try {
         const response = await axios.get(`${API_BASE_URL}/api/quotations/${q.est_id}`, { responseType: 'blob' });
         const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
@@ -160,18 +232,24 @@ export default function Quotation() {
         } else if (Array.isArray(q.products)) {
           parsedProducts = q.products;
         }
-        console.log('Parsed Products:', parsedProducts);
         if (!parsedProducts.every(p => p.id && p.product_type && p.price && p.discount !== undefined && p.quantity > 0)) {
           console.error('Invalid product data in parsedProducts');
-          setState(s => ({ ...s, error: 'Invalid product data in quotation', bookModal: false }));
+          setState(s => ({ ...s, error: 'Invalid product data in quotation', [modalType === 'book' ? 'bookModal' : 'editModal']: false }));
           return;
         }
       } catch (e) {
         console.error('Failed to parse products:', e);
-        setState(s => ({ ...s, error: 'Failed to parse quotation products', bookModal: false }));
+        setState(s => ({ ...s, error: 'Failed to parse quotation products', [modalType === 'book' ? 'bookModal' : 'editModal']: false }));
         return;
       }
-      setState(s => ({ ...s, selectedQuotation: q, bookModal: true, editCart: parsedProducts.map(p => ({ ...p, quantity: p.quantity || 1 })) }));
+      const extraCharges = typeof q.extra_charges === 'string' ? JSON.parse(q.extra_charges) : (q.extra_charges || { tax: 0, pf: 0, minus: 0 });
+      setState(s => ({
+        ...s,
+        selectedQuotation: q,
+        [modalType === 'book' ? 'bookModal' : 'editModal']: true,
+        editCart: parsedProducts.map(p => ({ ...p, quantity: p.quantity || 1 })),
+        extraCharges
+      }));
     }
   };
 
@@ -179,7 +257,18 @@ export default function Quotation() {
     if (state.pdfUrl) {
       window.URL.revokeObjectURL(state.pdfUrl);
     }
-    setState(s => ({ ...s, viewModal: false, bookModal: false, selectedQuotation: null, editCart: [], error: '', pdfError: '', pdfUrl: '' }));
+    setState(s => ({
+      ...s,
+      viewModal: false,
+      bookModal: false,
+      editModal: false,
+      selectedQuotation: null,
+      editCart: [],
+      extraCharges: { tax: 0, pf: 0, minus: 0 },
+      error: '',
+      pdfError: '',
+      pdfUrl: ''
+    }));
   };
 
   const productOptions = state.products.map(p => ({ value: `${p.id}-${p.product_type}`, label: `${p.serial_number} - ${p.productname} (${p.product_type})` }));
@@ -196,28 +285,39 @@ export default function Quotation() {
   const renderTable = (items, isEdit = false) => (
     <table className="w-full bg-white dark:bg-gray-800 shadow rounded-lg mobile:text-xs">
       <thead className="bg-gray-200 dark:bg-gray-700">
-        <tr className="text-lg mobile:text-sm">{['Product', 'Type', 'Price', 'Discount', 'Qty', 'Total', !isEdit && 'Actions'].filter(Boolean).map(h => <th key={h} className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{h}</th>)}</tr>
+        <tr className="text-lg mobile:text-sm">{['Sl No.','Product', 'Type', 'Price', 'Discount', 'Qty', 'Per', 'Total', isEdit && 'Actions'].filter(Boolean).map(h => <th key={h} className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{h}</th>)}</tr>
       </thead>
       <tbody>
         {items.length ? items.map(item => (
           <tr key={`${item.id}-${item.product_type}`} className="border-t border-gray-200 dark:border-gray-700 mobile:text-sm">
+            <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{item.serial_number}</td>
             <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{item.productname}</td>
             <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{item.product_type}</td>
             <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">₹{item.price}</td>
-            <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{item.discount}%</td>
+            <td className="text-center mobile:p-1">
+                <input
+                  type="number"
+                  min="0"
+                  max="100"
+                  value={item.discount}
+                  onChange={(e) => updateQuantityOrDiscount(item.id, item.product_type, 'discount', e.target.value, isEdit)}
+                  className="w-16 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
+                />
+            </td>
             <td className="text-center mobile:p-1">
               <input
                 type="number"
                 min="0"
                 value={item.quantity}
-                onChange={(e) => updateQuantity(item.id, item.product_type, e.target.value, isEdit)}
+                onChange={(e) => updateQuantityOrDiscount(item.id, item.product_type, 'quantity', e.target.value, isEdit)}
                 className="w-16 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
               />
             </td>
+            <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{item.per}</td>
             <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">₹{((item.price * (1 - item.discount / 100)) * item.quantity).toFixed(2)}</td>
-            {!isEdit && <td className="text-center mobile:p-1"><button onClick={() => removeFromCart(item.id, item.product_type)} className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-bold mobile:text-xs">Remove</button></td>}
+            {isEdit && <td className="text-center mobile:p-1"><button onClick={() => removeFromCart(item.id, item.product_type, true)} className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-bold mobile:text-xs">Remove</button></td>}
           </tr>
-        )) : <tr><td colSpan={isEdit ? 6 : 7} className="p-4 text-center text-gray-500 dark:text-gray-400 mobile:p-2 mobile:text-xs">No products</td></tr>}
+        )) : <tr><td colSpan={isEdit ? 7 : 6} className="p-4 text-center text-gray-500 dark:text-gray-400 mobile:p-2 mobile:text-xs">No products</td></tr>}
       </tbody>
     </table>
   );
@@ -244,6 +344,41 @@ export default function Quotation() {
             </div>
             <button onClick={addToCart} disabled={!state.selectedProduct} className="mt-8 w-50 h-10 bg-blue-600 dark:bg-blue-700 text-white px-6 py-3 rounded-lg font-bold hover:bg-blue-700 dark:hover:bg-blue-800 mobile:mt-4 mobile:w-full mobile:py-1 mobile:px-4 mobile:text-sm">Add to Cart</button>
           </div>
+          <div className="flex flex-col items-center mb-4">
+            <label className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Extra Charges</label>
+            <div className="flex gap-4">
+              <div>
+                <label className="text-sm text-gray-600 dark:text-gray-400">Tax (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={state.extraCharges.tax}
+                  onChange={(e) => updateExtraCharges('tax', e.target.value)}
+                  className="w-20 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-gray-600 dark:text-gray-400">P&F (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={state.extraCharges.pf}
+                  onChange={(e) => updateExtraCharges('pf', e.target.value)}
+                  className="w-20 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
+                />
+              </div>
+              <div>
+                <label className="text-sm text-gray-600 dark:text-gray-400">Deduction (₹)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={state.extraCharges.minus}
+                  onChange={(e) => updateExtraCharges('minus', e.target.value)}
+                  className="w-20 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
+                />
+              </div>
+            </div>
+          </div>
           <div className="overflow-x-auto onefifty:ml-32">{renderTable(state.cart)}</div>
           <div className="text-xl text-center mt-4 font-bold mobile:text-base mobile:mt-2">Total: ₹{calculateTotal(state.cart)}</div>
           <div className="flex justify-center mt-8 mobile:mt-4">
@@ -260,8 +395,9 @@ export default function Quotation() {
                     <p className="text-sm text-gray-600 dark:text-gray-400">Customer: {q.customer_name}</p>
                     <p className="text-sm text-gray-600 dark:text-gray-400">Status: {q.status}</p>
                     <div className="mt-4 flex justify-between gap-2">
-                      <button onClick={() => openModal(q)} className="flex-1 bg-blue-600 dark:bg-blue-500 text-white px-2 py-1 rounded-md text-sm hover:bg-blue-700 dark:hover:bg-blue-600">View</button>
-                      <button onClick={() => openModal(q, true)} disabled={q.status !== 'pending'} className={`flex-1 px-2 py-1 rounded-md text-sm text-white ${q.status !== 'pending' ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600'}`}>Book</button>
+                      <button onClick={() => openModal(q, 'view')} className="flex-1 bg-blue-600 dark:bg-blue-500 text-white px-2 py-1 rounded-md text-sm hover:bg-blue-700 dark:hover:bg-blue-600">View</button>
+                      <button onClick={() => openModal(q, 'edit')} disabled={q.status !== 'pending'} className={`flex-1 px-2 py-1 rounded-md text-sm text-white ${q.status !== 'pending' ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-yellow-600 dark:bg-yellow-500 hover:bg-yellow-700 dark:hover:bg-yellow-600'}`}>Edit</button>
+                      <button onClick={() => openModal(q, 'book')} disabled={q.status !== 'pending'} className={`flex-1 px-2 py-1 rounded-md text-sm text-white ${q.status !== 'pending' ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-green-600 dark:bg-green-500 hover:bg-green-700 dark:hover:bg-green-600'}`}>Book</button>
                       <button onClick={() => handleCancelQuotation(q.est_id)} disabled={q.status !== 'pending'} className={`flex-1 px-2 py-1 rounded-md text-sm text-white ${q.status !== 'pending' ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-red-600 dark:bg-red-500 hover:bg-red-700 dark:hover:bg-red-600'}`}>Cancel</button>
                     </div>
                   </div>
@@ -294,10 +430,103 @@ export default function Quotation() {
               </div>
             )}
           </Modal>
+          <Modal isOpen={state.editModal} onRequestClose={closeModal} className="fixed inset-0 flex items-center justify-center p-4" overlayClassName="fixed inset-0 bg-black/50 dark:bg-black/40">
+            {state.selectedQuotation && (
+              <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-3xl w-full">
+                <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Edit Quotation</h2>
+                <div className="flex flex-col items-center mb-4">
+                  <label className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Add Product</label>
+                  <Select value={state.selectedProduct} onChange={val => setState(s => ({ ...s, selectedProduct: val }))} options={productOptions} placeholder="Search for a product..." isClearable className="w-96 mobile:w-full" styles={selectStyles} />
+                  <button onClick={addToEditCart} disabled={!state.selectedProduct} className="mt-4 bg-blue-600 dark:bg-blue-700 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 dark:hover:bg-blue-800">Add to Cart</button>
+                </div>
+                <div className="flex flex-col items-center mb-4">
+                  <label className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Extra Charges</label>
+                  <div className="flex gap-4">
+                    <div>
+                      <label className="text-sm text-gray-600 dark:text-gray-400">Tax (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={state.extraCharges.tax}
+                        onChange={(e) => updateExtraCharges('tax', e.target.value)}
+                        className="w-20 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600 dark:text-gray-400">P&F (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={state.extraCharges.pf}
+                        onChange={(e) => updateExtraCharges('pf', e.target.value)}
+                        className="w-20 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600 dark:text-gray-400">Deduction (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={state.extraCharges.minus}
+                        onChange={(e) => updateExtraCharges('minus', e.target.value)}
+                        className="w-20 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
+                      />
+                    </div>
+                  </div>
+                </div>
+                {renderTable(state.editCart, true)}
+                <div className="text-xl text-center mt-4 font-bold dark:text-gray-100 mobile:text-base mobile:mt-2">Total: ₹{calculateTotal(state.editCart)}</div>
+                <div className="mt-6 flex justify-end gap-3">
+                  <button onClick={closeModal} className="bg-gray-600 dark:bg-gray-500 text-white px-4 py-2 rounded-md text-sm hover:bg-gray-700 dark:hover:bg-gray-600">Cancel</button>
+                  <button onClick={handleEditQuotation} className="bg-green-600 dark:bg-green-700 text-white px-4 py-2 rounded-md text-sm hover:bg-green-700 dark:hover:bg-green-800">Save</button>
+                </div>
+              </div>
+            )}
+          </Modal>
           <Modal isOpen={state.bookModal} onRequestClose={closeModal} className="fixed inset-0 flex items-center justify-center p-4" overlayClassName="fixed inset-0 bg-black/50 dark:bg-black/40">
             {state.selectedQuotation && (
               <div className="bg-white dark:bg-gray-800 rounded-lg p-6 max-w-3xl w-full">
                 <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-4">Book Quotation</h2>
+                <div className="flex flex-col items-center mb-4">
+                  <label className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Add Product</label>
+                  <Select value={state.selectedProduct} onChange={val => setState(s => ({ ...s, selectedProduct: val }))} options={productOptions} placeholder="Search for a product..." isClearable className="w-96 mobile:w-full" styles={selectStyles} />
+                  <button onClick={addToEditCart} disabled={!state.selectedProduct} className="mt-4 bg-blue-600 dark:bg-blue-700 text-white px-4 py-2 rounded-md text-sm hover:bg-blue-700 dark:hover:bg-blue-800">Add to Cart</button>
+                </div>
+                <div className="flex flex-col items-center mb-4">
+                  <label className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">Extra Charges</label>
+                  <div className="flex gap-4">
+                    <div>
+                      <label className="text-sm text-gray-600 dark:text-gray-400">Tax (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={state.extraCharges.tax}
+                        onChange={(e) => updateExtraCharges('tax', e.target.value)}
+                        className="w-20 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600 dark:text-gray-400">P&F (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={state.extraCharges.pf}
+                        onChange={(e) => updateExtraCharges('pf', e.target.value)}
+                        className="w-20 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-sm text-gray-600 dark:text-gray-400">Deduction (₹)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={state.extraCharges.minus}
+                        onChange={(e) => updateExtraCharges('minus', e.target.value)}
+                        className="w-20 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
+                      />
+                    </div>
+                  </div>
+                </div>
                 {renderTable(state.editCart, true)}
                 <div className="text-xl text-center mt-4 font-bold dark:text-gray-100 mobile:text-base mobile:mt-2">Total: ₹{calculateTotal(state.editCart)}</div>
                 <div className="mt-6 flex justify-end gap-3">
