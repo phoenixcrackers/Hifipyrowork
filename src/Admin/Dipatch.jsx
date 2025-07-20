@@ -13,8 +13,8 @@ export default function Dispatch() {
   const [lrNumber, setLrNumber] = useState('');
   const [error, setError] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [dispatchQty, setDispatchQty] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
+  const [productDispatches, setProductDispatches] = useState({});
 
   const cardsPerPage = 9;
 
@@ -53,51 +53,68 @@ export default function Dispatch() {
     fetchBookings();
   }, []);
 
-  const handleDispatch = async () => {
-    const totalQty = getTotalQty(selectedBooking);
-    const alreadyDispatched = selectedBooking.dispatched_qty || 0;
-    const remaining = totalQty - alreadyDispatched;
+const handleDispatch = async () => {
+  const products = getParsedProducts(selectedBooking);
 
-    if (!dispatchQty || isNaN(dispatchQty) || parseInt(dispatchQty) <= 0) {
-      setError('Please enter a valid quantity');
-      return;
-    }
+  const toDispatch = products.map((product, index) => {
+    const already = parseInt(product.dispatched || 0);
+    const qty = parseInt(productDispatches[index]) || 0;
+    const remaining = parseInt(product.quantity) - already;
+    const price = parseFloat(product.price) || 0;
+    const discount = parseFloat(product.discount || 0);
+    const dispatchQty = Math.min(qty, remaining);
+    const productTotal = (price - (price * discount / 100)) * dispatchQty;
+    return {
+      index,
+      dispatch_qty: dispatchQty,
+      total: productTotal.toFixed(2),
+    };
+  }).filter(p => p.dispatch_qty > 0);
 
-    if (parseInt(dispatchQty) > remaining) {
-      setError(`You can dispatch a maximum of ${remaining} items`);
-      return;
-    }
+  if (toDispatch.length === 0) {
+    setError('Please enter valid dispatch quantities for at least one product');
+    return;
+  }
 
-    try {
-      const payload = {
-        status: (alreadyDispatched + parseInt(dispatchQty)) >= totalQty ? 'dispatched' : 'paid',
-        dispatched_qty: parseInt(dispatchQty),
-      };
+  try {
+    const payload = {
+      status: 'dispatched',
+      products: toDispatch,
+    };
 
-      if (transportType) {
-        payload.transport_type = transportType;
-        if (transportType === 'transport') {
-          payload.transport_name = transportName;
-          payload.transport_contact = transportContact;
-          payload.lr_number = lrNumber;
-        }
+    if (transportType) {
+      payload.transport_type = transportType;
+      if (transportType === 'transport') {
+        payload.transport_name = transportName;
+        payload.transport_contact = transportContact;
+        payload.lr_number = lrNumber;
       }
+    }
 
-      await axios.patch(
-        `${API_BASE_URL}/api/tracking/bookings/${selectedBooking.id}/status`,
-        payload
-      );
+    console.log('Dispatch Payload:', payload); // Add for debugging
 
-      await fetchBookings(); // Refresh
-      setSelectedBooking(null);
-      setTransportType('');
-      setTransportName('');
-      setTransportContact('');
-      setLrNumber('');
-      setDispatchQty('');
-      setError('');
-    } catch (err) {
-      setError('Failed to update status');
+    await axios.patch(
+      `${API_BASE_URL}/api/tracking/bookings/order/${selectedBooking.order_id}/status`,
+      payload
+    );
+
+    await fetchBookings();
+    setSelectedBooking(null);
+    setTransportType('');
+    setTransportName('');
+    setTransportContact('');
+    setLrNumber('');
+    setProductDispatches({});
+    setError('');
+  } catch (err) {
+    setError(`Failed to update dispatch status: ${err.response?.data?.error || err.message}`);
+  }
+};
+
+  const handleProductDispatchChange = (index, value, maxQty) => {
+    const qty = parseInt(value) || 0;
+    if (qty <= maxQty) {
+      setProductDispatches((prev) => ({ ...prev, [index]: qty }));
     }
   };
 
@@ -107,7 +124,6 @@ export default function Dispatch() {
     return total - paid >= 0 ? total - paid : 0;
   };
 
-  // 🧠 Search Filtering
   const filteredBookings = bookings.filter((booking) => {
     const search = searchTerm.toLowerCase();
     const total = (parseFloat(booking.total) || 0).toFixed(2);
@@ -186,7 +202,7 @@ export default function Dispatch() {
                         <button
                           onClick={() => {
                             setSelectedBooking(booking);
-                            setDispatchQty(remaining.toString());
+                            setProductDispatches({}); // Reset product dispatches
                           }}
                           className="bg-blue-600 dark:bg-blue-500 text-white p-2 rounded mt-2 w-full hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
                         >
@@ -227,21 +243,54 @@ export default function Dispatch() {
               </div>
             </>
           )}
-
           {selectedBooking && (
             <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-900 rounded-lg shadow-md">
-              <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">Dispatch Order: {selectedBooking.order_id}</h2>
+              <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">
+                Dispatch Order: {selectedBooking.order_id}
+              </h2>
 
-              <input
-                type="number"
-                min="1"
-                max={getTotalQty(selectedBooking) - (selectedBooking?.dispatched_qty || 0)}
-                value={dispatchQty}
-                onChange={(e) => setDispatchQty(e.target.value)}
-                placeholder="Quantity to Dispatch"
-                className="p-2 border border-gray-300 dark:border-gray-600 rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100"
-              />
+              {/* Per-product dispatch fields */}
+              <div className="space-y-4 mb-4">
+                {getParsedProducts(selectedBooking).map((product, index) => {
+                  const already = parseInt(product.dispatched || 0);
+                  const totalQty = parseInt(product.quantity || 0);
+                  const remaining = totalQty - already;
+                  const price = parseFloat(product.price) || 0;
+                  const discount = parseFloat(product.discount || 0);
+                  const dispatchQty = parseInt(productDispatches[index]) || 0;
+                  const productTotal = (price - (price * discount / 100)) * dispatchQty;
 
+                  return (
+                    <div key={index} className="p-3 border rounded bg-white dark:bg-gray-800">
+                      <p className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                        {product.productname || `Product ${index + 1}`}
+                      </p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">Total: Rs.{(price * totalQty).toFixed(2)}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">Discount: {discount}%</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">Dispatched: {already}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300">Remaining: {remaining}</p>
+                      <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+                        Dispatch Total: Rs.{productTotal.toFixed(2)}
+                      </p>
+                      {remaining === 0 ? (
+                        <div className="text-green-600 font-medium">Fully Dispatched</div>
+                      ) : (
+                        <input
+                          type="number"
+                          min="0"
+                          max={remaining}
+                          value={productDispatches[index] || ''}
+                          onChange={(e) => handleProductDispatchChange(index, e.target.value, remaining)}
+                          placeholder="Dispatch Qty"
+                          className="p-2 w-full border rounded bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Transport selection */}
               <select
                 value={transportType}
                 onChange={(e) => setTransportType(e.target.value)}
@@ -278,6 +327,7 @@ export default function Dispatch() {
                 </>
               )}
 
+              {/* Actions */}
               <div className="flex justify-end gap-4">
                 <button
                   onClick={() => setSelectedBooking(null)}

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FaBox, FaChartBar, FaBars, FaTimes,  FaStackExchange, FaUsers, FaShoppingCart, FaLocationArrow, FaTruck, FaDollarSign, FaMoneyCheck, FaCoins} from 'react-icons/fa';
+import { FaBox,FaChartBar,FaBars,FaTimes,FaStackExchange,FaUsers,FaShoppingCart,FaLocationArrow,FaTruck,FaDollarSign,FaMoneyCheck,FaCoins,FaMoneyBill} from 'react-icons/fa';
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,7 +14,8 @@ export default function Sidebar() {
     { name: 'Tracking', path: '/tracking', icon: <FaLocationArrow className="mr-2" /> },
     { name: 'Pending Payments', path: '/pending', icon: <FaMoneyCheck className="mr-2" /> },
     { name: 'Dispatch', path: '/dispatch', icon: <FaTruck className="mr-2" /> },
-    { name: 'Ledger', path: '/ledger', icon: <FaDollarSign className="mr-2" /> },
+    { name: 'Ledger', path: '/ledger', icon: <FaMoneyBill className="mr-2" /> },
+    { name: 'Receipt', path: '/receipt', icon: <FaDollarSign className="mr-2" /> },
     { name: 'Report', path: '/report', icon: <FaChartBar className="mr-2" /> },
   ];
 

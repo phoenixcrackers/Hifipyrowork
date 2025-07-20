@@ -1,83 +1,289 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { API_BASE_URL } from '../../Config';
-import Sidebar from './Sidebar/Sidebar';
-import Logout from './Logout';
+import React, { useEffect, useState } from "react";
+import Sidebar from "./Sidebar/Sidebar";
+import Modal from "react-modal";
+import { API_BASE_URL } from "../../Config";
+import { ArrowRight, X } from "lucide-react";
+import Logout from "./Logout";
+
+Modal.setAppElement("#root");
+
+const PAGE_SIZE = 10;
 
 export default function Ledger() {
-  const [admins, setAdmins] = useState([]);
-  const [selectedAdmin, setSelectedAdmin] = useState(null);
-  const [transactions, setTransactions] = useState([]);
-  const [error, setError] = useState('');
-
-  const fetchAdmins = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/admins`);
-      setAdmins(response.data);
-    } catch (err) {
-      setError('Failed to fetch admins');
-    }
-  };
-
-  const fetchTransactions = async (adminId) => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/admins/${adminId}/transactions`);
-      setTransactions(response.data);
-    } catch (err) {
-      setError('Failed to fetch transactions');
-    }
-  };
+  const [bookings, setBookings] = useState([]);
+  const [filtered, setFiltered] = useState([]);
+  const [selectedBooking, setSelectedBooking] = useState(null);
+  const [dispatchLogs, setDispatchLogs] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [modalIsOpen, setModalIsOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
-    fetchAdmins();
+    fetch(`${API_BASE_URL}/api/tracking/bookings`)
+      .then((res) => res.json())
+      .then((data) => {
+        setBookings(data);
+        setFiltered(data);
+      })
+      .catch((err) => console.error("Failed to fetch bookings:", err));
   }, []);
+
+  const openModal = async (booking) => {
+    setSelectedBooking(booking);
+    setModalIsOpen(true);
+    document.body.classList.add("overflow-hidden");
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/dispatch_logs/${booking.order_id}`);
+      const { dispatch_logs, payments } = await res.json();
+      setDispatchLogs(dispatch_logs);
+      setPayments(payments);
+    } catch (err) {
+      console.error("Failed to fetch dispatch logs:", err);
+      setDispatchLogs([]);
+      setPayments([]);
+    }
+  };
+
+  const closeModal = () => {
+    setSelectedBooking(null);
+    setDispatchLogs([]);
+    setPayments([]);
+    setModalIsOpen(false);
+    document.body.classList.remove("overflow-hidden");
+  };
+
+  const getStatusBadge = (status) => {
+    const base = "inline-block text-xs font-semibold px-2 py-1 rounded-full";
+    switch (status.toLowerCase()) {
+      case "completed":
+        return `${base} bg-green-100 text-green-700`;
+      case "pending":
+        return `${base} bg-yellow-100 text-yellow-800`;
+      case "cancelled":
+        return `${base} bg-red-100 text-red-700`;
+      default:
+        return `${base} bg-gray-200 text-gray-800`;
+    }
+  };
+
+  const handleSearch = (e) => {
+    const val = e.target.value.toLowerCase();
+    setSearchQuery(val);
+    setCurrentPage(1);
+    const filtered = bookings.filter((b) =>
+      b.customer_name.toLowerCase().includes(val) ||
+      b.order_id.toLowerCase().includes(val)
+    );
+    setFiltered(filtered);
+  };
+
+  const downloadReceipt = async (booking) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/dbooking/receipt/${booking.order_id}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch receipt: ${response.statusText}`);
+      }
+      const blob = await response.blob();
+      const safeName = (booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${safeName}-${booking.order_id || 'unknown'}-receipt.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to download receipt:', error);
+      alert('Unable to download receipt. Please try again or contact support.');
+    }
+  };
+
+  const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+  const pageCount = Math.ceil(filtered.length / PAGE_SIZE);
 
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
       <Sidebar />
       <Logout />
-      <div className="flex-1 flex items-top justify-center onefifty:ml-[20%] hundred:ml-[15%]">
-        <div className="w-full max-w-5xl p-6">
-          <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 dark:text-gray-100">Ledger</h1>
-          {error && <div className="bg-red-100 dark:bg-red-900 p-2 mb-4 text-red-700 dark:text-red-300">{error}</div>}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-            {admins.map(admin => (
-              <div key={admin.id} className="bg-white dark:bg-gray-800 p-4 rounded shadow border border-gray-300 dark:border-gray-600">
-                <h3 className="text-gray-900 dark:text-gray-100">Name: {admin.username}</h3>
-                <p className="text-gray-900 dark:text-gray-100">Total: Rs.{admin.total || '0.00'}</p>
-                <button
-                  onClick={() => { setSelectedAdmin(admin); fetchTransactions(admin.id); }}
-                  className="bg-blue-600 dark:bg-blue-500 text-white p-2 rounded mt-2 hover:bg-blue-700 dark:hover:bg-blue-600"
-                >
-                  View Transactions
-                </button>
-              </div>
+      <div className="flex-1 p-10 ml-60">
+        <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-6">
+          📒 Ledger Overview
+        </h1>
+
+        {/* Search */}
+        <div className="flex justify-end mb-6">
+          <input
+            type="text"
+            placeholder="Search by customer or order ID..."
+            value={searchQuery}
+            onChange={handleSearch}
+            className="w-full md:w-1/3 p-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-800 dark:text-white dark:border-gray-600"
+          />
+        </div>
+
+        {/* Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+          {paginated.map((booking) => (
+            <div
+              key={booking.id}
+              className="bg-white dark:bg-gray-800 p-6 rounded-xl shadow-md transition hover:scale-[1.02]"
+            >
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">
+                #{booking.order_id}
+              </h2>
+              <p className="text-gray-600 dark:text-gray-300">Customer: {booking.customer_name}</p>
+              <p className="text-gray-600 dark:text-gray-300">Phone: {booking.mobile_number}</p>
+              <p className="mt-2">
+                <span className={getStatusBadge(booking.status)}>{booking.status}</span>
+              </p>
+              <p className="text-gray-600 dark:text-gray-300">
+                <span className="font-semibold">Admin:</span> {booking.admin_username || "N/A"}
+              </p>
+              <p className="mt-1 text-gray-600 dark:text-gray-300">Total: ₹{booking.total}</p>
+              <button
+                onClick={() => openModal(booking)}
+                className="mt-4 w-full flex justify-center items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-lg hover:brightness-110"
+              >
+                View Details <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Pagination */}
+        {pageCount > 1 && (
+          <div className="flex justify-center mt-10 space-x-2">
+            {Array.from({ length: pageCount }, (_, i) => (
+              <button
+                key={i}
+                onClick={() => setCurrentPage(i + 1)}
+                className={`px-4 py-2 rounded-full border font-medium transition ${
+                  currentPage === i + 1
+                    ? "bg-blue-600 text-white border-blue-600"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-200"
+                }`}
+              >
+                {i + 1}
+              </button>
             ))}
           </div>
-          {selectedAdmin && (
-            <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-900 rounded">
-              <h2 className="text-gray-900 dark:text-gray-100">Transactions for {selectedAdmin.username}</h2>
-              <table className="w-full border-collapse mt-2">
-                <thead>
-                  <tr className="bg-gray-200 dark:bg-gray-700">
-                    <th className="p-2 text-center text-gray-900 dark:text-gray-100">Customer Name</th>
-                    <th className="p-2 text-center text-gray-900 dark:text-gray-100">Amount Paid</th>
-                    <th className="p-2 text-center text-gray-900 dark:text-gray-100">Transaction Date</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {transactions.map(tx => (
-                    <tr key={tx.id} className="border-b border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600">
-                      <td className="p-2 text-center text-gray-900 dark:text-gray-100">{tx.customer_name}</td>
-                      <td className="p-2 text-center text-gray-900 dark:text-gray-100">Rs.{tx.amount_paid}</td>
-                      <td className="p-2 text-center text-gray-900 dark:text-gray-100">{new Date(tx.transaction_date).toLocaleDateString()}</td>
-                    </tr>
+        )}
+
+        {/* Modal */}
+        <Modal
+          isOpen={modalIsOpen}
+          onRequestClose={closeModal}
+          className="max-w-4xl w-full max-h-[90vh] overflow-y-auto mx-auto bg-white dark:bg-gray-900 p-8 rounded-2xl shadow-2xl mt-10 z-[9999] outline-none"
+          overlayClassName="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-start pt-10 z-[9998]"
+        >
+          {selectedBooking && (
+            <div className="space-y-6 text-gray-800 dark:text-gray-200">
+              {/* Header */}
+              <div className="flex justify-between items-center border-b pb-4">
+                <h2 className="text-2xl font-bold">Order #{selectedBooking.order_id}</h2>
+                <div className="flex gap-4">
+                  <button
+                    onClick={() => downloadReceipt(selectedBooking)}
+                    className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 px-4 rounded-lg hover:brightness-110"
+                  >
+                    Download Receipt
+                  </button>
+                  <button onClick={closeModal} className="text-gray-400 hover:text-red-500 transition">
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Info */}
+              <div className="grid md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                <div><span className="font-semibold">Customer:</span> {selectedBooking.customer_name}</div>
+                <div><span className="font-semibold">Phone:</span> {selectedBooking.mobile_number}</div>
+                <div><span className="font-semibold">Email:</span> {selectedBooking.email}</div>
+                <div><span className="font-semibold">Payment:</span> {selectedBooking.payment_method || "N/A"}</div>
+                <div className="md:col-span-2">
+                  <span className="font-semibold">Address:</span> {selectedBooking.address}, {selectedBooking.district}, {selectedBooking.state}
+                </div>
+                <div><span className="font-semibold">Amount Paid:</span> ₹{selectedBooking.amount_paid}</div>
+                <div><span className="font-semibold">Status:</span> <span className={getStatusBadge(selectedBooking.status)}>{selectedBooking.status}</span></div>
+              </div>
+
+              {/* Products */}
+              <div>
+                <h3 className="font-semibold text-lg mb-2">🛍️ Products</h3>
+                <div className="space-y-3">
+                  {(Array.isArray(selectedBooking.products)
+                    ? selectedBooking.products
+                    : JSON.parse(selectedBooking.products || "[]")
+                  ).map((prod, idx) => (
+                    <div
+                      key={idx}
+                      className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
+                    >
+                      <div className="font-semibold">{prod.productname}</div>
+                      <div className="text-sm">Qty: {prod.quantity} {prod.per}</div>
+                      <div className="text-sm">Price: ₹{prod.price} | Discount: {prod.discount || 0}%</div>
+                      <div className="text-sm">Dispatched: {prod.dispatched || 0}</div>
+                    </div>
                   ))}
-                </tbody>
-              </table>
+                </div>
+              </div>
+
+              {/* Dispatch Logs */}
+              <div>
+                <h3 className="font-semibold text-lg mb-2">🚚 Dispatch Logs</h3>
+                {dispatchLogs.length > 0 ? (
+                  <div className="space-y-3">
+                    {dispatchLogs.map((log, idx) => (
+                      <div
+                        key={idx}
+                        className="bg-green-50 dark:bg-green-900 p-4 rounded-lg border border-green-200 dark:border-green-800"
+                      >
+                        <div className="text-sm"><strong>Product:</strong> {log.product_name}</div>
+                        <div className="text-sm"><strong>Dispatched Qty:</strong> {log.dispatched_qty}</div>
+                        <div className="text-sm"><strong>Date & Time:</strong> {new Date(log.dispatched_at).toLocaleString()}</div>
+                        <div className="text-sm"><strong>Transport:</strong> {log.transport_type || "N/A"} - {log.transport_name || "N/A"}</div>
+                        <div className="text-sm"><strong>LR No:</strong> {log.lr_number || "N/A"}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-sm text-gray- got 500 internal server error 400 dark:text-gray-400">No dispatch logs found.</p>
+                )}
+              </div>
+
+              {/* Payments */}
+              <div>
+                <h3 className="font-semibold text-lg mb-2">💳 Payments</h3>
+                {payments.length > 0 ? (
+                  <>
+                    <div className="font-medium text-gray-700 dark:text-gray-200 mb-2">
+                      Total Received: ₹{payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)}
+                    </div>
+                    <div className="space-y-3">
+                      {payments.map((payment, idx) => (
+                        <div
+                          key={idx}
+                          className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg border border-blue-200 dark:border-blue-700"
+                        >
+                          <div className="text-sm"><strong>Amount:</strong> ₹{payment.amount_paid}</div>
+                          <div className="text-sm"><strong>Method:</strong> {payment.payment_method || "N/A"}</div>
+                          <div className="text-sm"><strong>Date:</strong> {new Date(payment.created_at).toLocaleString()}</div>
+                          <div className="text-sm"><strong>Admin:</strong> {payment.admin_username || "N/A"}</div>
+                          <div className="text-sm"><strong>Note:</strong> {payment.note || "-"}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <p className="text-sm text-gray-500 dark:text-gray-400">No payments found.</p>
+                )}
+              </div>
             </div>
           )}
-        </div>
+        </Modal>
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ import Dispatch from './Admin/Dipatch';
 import Tracking from './Admin/Tracking';
 import PendingPayments from './Admin/PendingPayments';
 import Quotation from './Admin/Quotation';
+import Receipt from './Admin/Receipt';
 
 const AllRoutes = () => {
   return (
@@ -32,6 +33,7 @@ const AllRoutes = () => {
         <Route path="/tracking" element={<Tracking />} />
         <Route path="/pending" element={<PendingPayments />} />
         <Route path="/quotation" element={<Quotation />} />
+        <Route path="/receipt" element={<Receipt />} />
       </Route>
       
       <Route element={<ProtectedRoute />}>

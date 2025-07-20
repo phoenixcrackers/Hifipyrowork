@@ -120,7 +120,7 @@ export default function Tracking() {
   const saveEditedBooking = async () => {
     try {
       const payload = { products: editedBooking.products };
-await axios.patch(`${API_BASE_URL}/api/dbookings/${editedBooking.id}/edit-products`, payload);
+      await axios.patch(`${API_BASE_URL}/api/dbookings/${editedBooking.id}/edit-products`, payload);
       setIsEditModalOpen(false);
       fetchBookings();
     } catch (err) {
