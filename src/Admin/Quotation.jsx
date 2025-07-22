@@ -181,6 +181,21 @@ export default function Quotation() {
         total: parseFloat(total),
         extra_charges: state.extraCharges
       });
+
+      // Reduce stock for booked products
+      for (const item of state.editCart) {
+        if (item.product_type === 'gift_box_dealers') {
+          const currentStock = state.products.find(p => p.id === item.id && p.product_type === item.product_type)?.stock || 0;
+          if (currentStock >= item.quantity) {
+            await axios.patch(`${API_BASE_URL}/api/gift-box-products/${item.id}`, {
+              stock: currentStock - item.quantity
+            });
+          } else {
+            throw new Error(`Insufficient stock for product ${item.productname}`);
+          }
+        }
+      }
+
       setState(s => ({
         ...s,
         quotations: s.quotations.map(q => q.est_id === state.selectedQuotation.est_id ? { ...q, status: 'booked' } : q),
@@ -194,7 +209,7 @@ export default function Quotation() {
       setTimeout(() => setState(s => ({ ...s, success: '' })), 3000);
     } catch (err) {
       console.error('Book quotation error:', err);
-      setState(s => ({ ...s, error: 'Failed to book quotation' }));
+      setState(s => ({ ...s, error: err.message || 'Failed to book quotation' }));
     }
   };
 
