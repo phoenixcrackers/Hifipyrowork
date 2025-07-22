@@ -9,6 +9,15 @@ Modal.setAppElement("#root");
 
 const PAGE_SIZE = 10;
 
+// Function to format date as dd/mm/yyyy
+const formatDate = (date) => {
+  const d = new Date(date);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${day}/${month}/${year}`;
+};
+
 export default function Ledger() {
   const [bookings, setBookings] = useState([]);
   const [filtered, setFiltered] = useState([]);
@@ -16,6 +25,7 @@ export default function Ledger() {
   const [dispatchLogs, setDispatchLogs] = useState([]);
   const [payments, setPayments] = useState([]);
   const [modalIsOpen, setModalIsOpen] = useState(false);
+  const [showDetailedView, setShowDetailedView] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -32,6 +42,7 @@ export default function Ledger() {
   const openModal = async (booking) => {
     setSelectedBooking(booking);
     setModalIsOpen(true);
+    setShowDetailedView(false);
     document.body.classList.add("overflow-hidden");
 
     try {
@@ -51,7 +62,22 @@ export default function Ledger() {
     setDispatchLogs([]);
     setPayments([]);
     setModalIsOpen(false);
+    setShowDetailedView(false);
     document.body.classList.remove("overflow-hidden");
+  };
+
+  const calculateDebit = (dispatchLogs, products) => {
+    let total = 0;
+    dispatchLogs.forEach(log => {
+      const prod = products[log.product_index];
+      if (prod) {
+        const price = parseFloat(prod.price) || 0;
+        const discount = parseFloat(prod.discount || 0);
+        const effectivePrice = price - (price * discount / 100);
+        total += effectivePrice * (log.dispatched_qty || 0);
+      }
+    });
+    return total;
   };
 
   const getStatusBadge = (status) => {
@@ -179,110 +205,231 @@ export default function Ledger() {
           className="max-w-4xl w-full max-h-[90vh] overflow-y-auto mx-auto bg-white dark:bg-gray-900 p-8 rounded-2xl shadow-2xl mt-10 z-[9999] outline-none"
           overlayClassName="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-start pt-10 z-[9998]"
         >
-          {selectedBooking && (
-            <div className="space-y-6 text-gray-800 dark:text-gray-200">
-              {/* Header */}
-              <div className="flex justify-between items-center border-b pb-4">
-                <h2 className="text-2xl font-bold">Order #{selectedBooking.order_id}</h2>
-                <div className="flex gap-4">
-                  <button
-                    onClick={() => downloadReceipt(selectedBooking)}
-                    className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 px-4 rounded-lg hover:brightness-110"
-                  >
-                    Download Receipt
-                  </button>
-                  <button onClick={closeModal} className="text-gray-400 hover:text-red-500 transition">
-                    <X className="w-6 h-6" />
-                  </button>
-                </div>
-              </div>
+          {selectedBooking && (() => {
+            const parsedProducts = Array.isArray(selectedBooking.products)
+              ? selectedBooking.products
+              : JSON.parse(selectedBooking.products || "[]");
+            const totalQty = parsedProducts.reduce((sum, p) => sum + Number(p.quantity || 0), 0);
+            const totalOrderValue = Number(selectedBooking.total || 0);
+            const dispatchedQty = dispatchLogs.reduce((sum, log) => sum + Number(log.dispatched_qty || 0), 0);
+            const debit = calculateDebit(dispatchLogs, parsedProducts);
+            const credit = payments.reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
+            const netBalance = credit - debit;
 
-              {/* Info */}
-              <div className="grid md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
-                <div><span className="font-semibold">Customer:</span> {selectedBooking.customer_name}</div>
-                <div><span className="font-semibold">Phone:</span> {selectedBooking.mobile_number}</div>
-                <div><span className="font-semibold">Email:</span> {selectedBooking.email}</div>
-                <div><span className="font-semibold">Payment:</span> {selectedBooking.payment_method || "N/A"}</div>
-                <div className="md:col-span-2">
-                  <span className="font-semibold">Address:</span> {selectedBooking.address}, {selectedBooking.district}, {selectedBooking.state}
-                </div>
-                <div><span className="font-semibold">Amount Paid:</span> ₹{selectedBooking.amount_paid}</div>
-                <div><span className="font-semibold">Status:</span> <span className={getStatusBadge(selectedBooking.status)}>{selectedBooking.status}</span></div>
-              </div>
+            // Prepare table data for receipt, combining dispatch logs and payments, sorted by date
+            const tableData = [
+              ...dispatchLogs.map((log, index) => {
+                const prod = parsedProducts[log.product_index];
+                const price = prod ? parseFloat(prod.price) || 0 : 0;
+                const discount = prod ? parseFloat(prod.discount || 0) : 0;
+                const effectivePrice = price - (price * discount / 100);
+                const amount = effectivePrice * (log.dispatched_qty || 0);
+                return {
+                  slNo: index + 1,
+                  productName: log.product_name,
+                  quantity: log.dispatched_qty,
+                  ratePerBox: effectivePrice.toFixed(2),
+                  amount: `${amount.toFixed(2)} Dr`,
+                  date: new Date(log.dispatched_at).getTime(),
+                };
+              }),
+              ...payments.map((payment, index) => ({
+                slNo: dispatchLogs.length + index + 1,
+                productName: `Payment (${payment.payment_method || "N/A"})`,
+                quantity: "-",
+                ratePerBox: "-",
+                amount: `${Number(payment.amount_paid).toFixed(2)} Cr`,
+                date: new Date(payment.created_at).getTime(),
+              })),
+            ].sort((a, b) => a.date - b.date); // Sort by date, earliest to latest
 
-              {/* Products */}
-              <div>
-                <h3 className="font-semibold text-lg mb-2">🛍️ Products</h3>
-                <div className="space-y-3">
-                  {(Array.isArray(selectedBooking.products)
-                    ? selectedBooking.products
-                    : JSON.parse(selectedBooking.products || "[]")
-                  ).map((prod, idx) => (
-                    <div
-                      key={idx}
-                      className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
+            return showDetailedView ? (
+              // Detailed View
+              <div className="space-y-6 text-gray-800 dark:text-gray-200">
+                <div className="flex justify-between items-center border-b pb-4">
+                  <h2 className="text-2xl font-bold">Order #{selectedBooking.order_id}</h2>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => setShowDetailedView(false)}
+                      className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 px-4 rounded-lg hover:brightness-110"
                     >
-                      <div className="font-semibold">{prod.productname}</div>
-                      <div className="text-sm">Qty: {prod.quantity} {prod.per}</div>
-                      <div className="text-sm">Price: ₹{prod.price} | Discount: {prod.discount || 0}%</div>
-                      <div className="text-sm">Dispatched: {prod.dispatched || 0}</div>
-                    </div>
-                  ))}
+                      View Receipt
+                    </button>
+                    <button
+                      onClick={() => downloadReceipt(selectedBooking)}
+                      className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 px-4 rounded-lg hover:brightness-110"
+                    >
+                      Download Receipt
+                    </button>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-red-500 transition">
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              {/* Dispatch Logs */}
-              <div>
-                <h3 className="font-semibold text-lg mb-2">🚚 Dispatch Logs</h3>
-                {dispatchLogs.length > 0 ? (
+                <div className="grid md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                  <div><strong>Customer:</strong> {selectedBooking.customer_name}</div>
+                  <div><strong>Phone:</strong> {selectedBooking.mobile_number}</div>
+                  <div><strong>Email:</strong> {selectedBooking.email}</div>
+                  <div><strong>Payment:</strong> {selectedBooking.payment_method || "N/A"}</div>
+                  <div className="md:col-span-2">
+                    <strong>Address:</strong> {selectedBooking.address}, {selectedBooking.district}, {selectedBooking.state}
+                  </div>
+                  <div><strong>Amount Paid:</strong> ₹{credit.toFixed(2)}</div>
+                  <div><strong>Status:</strong> <span className={getStatusBadge(selectedBooking.status)}>{selectedBooking.status}</span></div>
+                </div>
+                <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl shadow-sm border dark:border-gray-700 mb-6">
+                  <h3 className="text-lg font-semibold mb-3">📋 Invoice Summary</h3>
+                  <div className="grid md:grid-cols-3 gap-4 text-sm">
+                    <div><strong>💰 Credit (Paid):</strong> ₹{credit.toFixed(2)}</div>
+                    <div><strong>📦 Debit (Dispatched):</strong> ₹{debit.toFixed(2)}</div>
+                    <div><strong>🧾 Order Value:</strong> ₹{totalOrderValue.toFixed(2)}</div>
+                    <div><strong>📦 Qty Ordered:</strong> {totalQty}</div>
+                    <div><strong>🚚 Dispatched Qty:</strong> {dispatchedQty}</div>
+                    <div><strong>📦 Remaining Qty:</strong> {totalQty - dispatchedQty}</div>
+                    <div className={`md:col-span-3 text-sm font-semibold mt-2 ${netBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      🔁 Net Balance: ₹{netBalance.toFixed(2)} {netBalance < 0 ? '(Outstanding)' : '(Advance)'}
+                    </div>
+                  </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">🛍️ Products</h3>
                   <div className="space-y-3">
-                    {dispatchLogs.map((log, idx) => (
-                      <div
-                        key={idx}
-                        className="bg-green-50 dark:bg-green-900 p-4 rounded-lg border border-green-200 dark:border-green-800"
-                      >
-                        <div className="text-sm"><strong>Product:</strong> {log.product_name}</div>
-                        <div className="text-sm"><strong>Dispatched Qty:</strong> {log.dispatched_qty}</div>
-                        <div className="text-sm"><strong>Date & Time:</strong> {new Date(log.dispatched_at).toLocaleString()}</div>
-                        <div className="text-sm"><strong>Transport:</strong> {log.transport_type || "N/A"} - {log.transport_name || "N/A"}</div>
-                        <div className="text-sm"><strong>LR No:</strong> {log.lr_number || "N/A"}</div>
+                    {parsedProducts.map((prod, idx) => (
+                      <div key={idx} className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700">
+                        <div className="font-semibold">{prod.productname}</div>
+                        <div className="text-sm">Qty: {prod.quantity} {prod.per}</div>
+                        <div className="text-sm">Price: ₹{prod.price} | Discount: {prod.discount || 0}%</div>
+                        <div className="text-sm">Dispatched: {prod.dispatched || 0}</div>
                       </div>
                     ))}
                   </div>
-                ) : (
-                  <p className="text-sm text-gray- got 500 internal server error 400 dark:text-gray-400">No dispatch logs found.</p>
-                )}
-              </div>
-
-              {/* Payments */}
-              <div>
-                <h3 className="font-semibold text-lg mb-2">💳 Payments</h3>
-                {payments.length > 0 ? (
-                  <>
-                    <div className="font-medium text-gray-700 dark:text-gray-200 mb-2">
-                      Total Received: ₹{payments.reduce((sum, p) => sum + Number(p.amount || 0), 0)}
-                    </div>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">🚚 Dispatch Logs</h3>
+                  {dispatchLogs.length > 0 ? (
                     <div className="space-y-3">
-                      {payments.map((payment, idx) => (
-                        <div
-                          key={idx}
-                          className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg border border-blue-200 dark:border-blue-700"
-                        >
-                          <div className="text-sm"><strong>Amount:</strong> ₹{payment.amount_paid}</div>
-                          <div className="text-sm"><strong>Method:</strong> {payment.payment_method || "N/A"}</div>
-                          <div className="text-sm"><strong>Date:</strong> {new Date(payment.created_at).toLocaleString()}</div>
-                          <div className="text-sm"><strong>Admin:</strong> {payment.admin_username || "N/A"}</div>
-                          <div className="text-sm"><strong>Note:</strong> {payment.note || "-"}</div>
+                      {dispatchLogs.map((log, idx) => (
+                        <div key={idx} className="bg-green-50 dark:bg-green-900 p-4 rounded-lg border border-green-200 dark:border-green-800">
+                          <div className="text-sm"><strong>Product:</strong> {log.product_name}</div>
+                          <div className="text-sm"><strong>Dispatched Qty:</strong> {log.dispatched_qty}</div>
+                          <div className="text-sm"><strong>Date & Time:</strong> {formatDate(log.dispatched_at)}</div>
+                          <div className="text-sm"><strong>Transport:</strong> {log.transport_type || "N/A"} - {log.transport_name || "N/A"}</div>
+                          <div className="text-sm"><strong>LR No:</strong> {log.lr_number || "N/A"}</div>
                         </div>
                       ))}
                     </div>
-                  </>
-                ) : (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">No payments found.</p>
-                )}
+                  ) : (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No dispatch logs found.</p>
+                  )}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-lg mb-2">💳 Payments</h3>
+                  {payments.length > 0 ? (
+                    <>
+                      <div className="font-medium text-gray-700 dark:text-gray-200 mb-2">
+                        Total Received: ₹{credit.toFixed(2)}
+                      </div>
+                      <div className="space-y-3">
+                        {payments.map((payment, idx) => (
+                          <div key={idx} className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg border border-blue-200 dark:border-blue-700">
+                            <div className="text-sm"><strong>Amount:</strong> ₹{payment.amount_paid}</div>
+                            <div className="text-sm"><strong>Method:</strong> {payment.payment_method || "N/A"}</div>
+                            <div className="text-sm"><strong>Date:</strong> {formatDate(payment.created_at)}</div>
+                            <div className="text-sm"><strong>Admin:</strong> {payment.admin_username || "N/A"}</div>
+                            <div className="text-sm"><strong>Note:</strong> {payment.note || "-"}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <p className="text-sm text-gray-500 dark:text-gray-400">No payments found.</p>
+                  )}
+                </div>
+                <div className="flex justify-between mt-4 border-t pt-4 text-sm font-semibold">
+                  <div className="text-green-600">💰 Credit (Total Paid): ₹{credit.toFixed(2)}</div>
+                  <div className="text-red-600">📦 Debit (Value of Dispatched Goods): ₹{debit.toFixed(2)}</div>
+                </div>
               </div>
-            </div>
-          )}
+            ) : (
+              // Receipt View
+              <div className="space-y-6 text-gray-800 dark:text-gray-200">
+                <div className="flex justify-between items-center border-b pb-4">
+                  <h2 className="text-2xl font-bold">Receipt #{selectedBooking.order_id}</h2>
+                  <div className="flex gap-4">
+                    <button
+                      onClick={() => setShowDetailedView(true)}
+                      className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 px-4 rounded-lg hover:brightness-110"
+                    >
+                      View Details
+                    </button>
+                    <button
+                      onClick={() => downloadReceipt(selectedBooking)}
+                      className="flex items-center gap-2 bg-gradient-to-r from-green-600 to-teal-600 text-white py-2 px-4 rounded-lg hover:brightness-110"
+                    >
+                      Download Receipt
+                    </button>
+                    <button onClick={closeModal} className="text-gray-400 hover:text-red-500 transition">
+                      <X className="w-6 h-6" />
+                    </button>
+                  </div>
+                </div>
+                <div className="grid md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                  <div><strong>Customer:</strong> {selectedBooking.customer_name}</div>
+                  <div><strong>Phone:</strong> {selectedBooking.mobile_number}</div>
+                  <div><strong>Email:</strong> {selectedBooking.email}</div>
+                  <div><strong>Order Date:</strong> {formatDate(selectedBooking.created_at)}</div>
+                  <div className="md:col-span-2">
+                    <strong>Address:</strong> {selectedBooking.address}, {selectedBooking.district}, {selectedBooking.state}
+                  </div>
+                </div>
+                <div className="mt-4">
+                  <h3 className="font-semibold text-lg mb-2">📄 Receipt Summary</h3>
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-gray-100 dark:bg-gray-800">
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-left">Sl.No</th>
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-left">Description</th>
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-right">Quantity</th>
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-right">Rate/Box (₹)</th>
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-right">Date</th>
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-right">Amount (₹)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {tableData.map((row, index) => (
+                        <tr key={index}>
+                          <td className="border border-gray-300 dark:border-gray-600 p-2">{row.slNo}</td>
+                          <td className="border border-gray-300 dark:border-gray-600 p-2">{row.productName}</td>
+                          <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">{row.quantity}</td>
+                          <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">{row.ratePerBox}</td>
+                          <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">
+                            {formatDate(row.date)}
+                          </td>
+                          <td className={`border border-gray-300 dark:border-gray-600 p-2 text-right ${row.amount.includes('Dr') ? 'text-red-600' : 'text-green-600'}`}>
+                            {row.amount}
+                          </td>
+                        </tr>
+                      ))}
+                      <tr className="font-semibold">
+                        <td className="border border-gray-300 dark:border-gray-600 p-2" colSpan={2}>Total</td>
+                        <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">{totalQty}</td>
+                        <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">-</td>
+                        <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">-</td>
+                        <td className={`border border-gray-300 dark:border-gray-600 p-2 text-right ${netBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {netBalance.toFixed(2)} {netBalance < 0 ? '(Outstanding)' : '(Advance)'}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-4">
+                  <p className="text-sm">
+                    <strong>Status:</strong> <span className={getStatusBadge(selectedBooking.status)}>{selectedBooking.status}</span>
+                  </p>
+                </div>
+              </div>
+            );
+          })()}
         </Modal>
       </div>
     </div>

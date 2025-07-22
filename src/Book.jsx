@@ -459,7 +459,6 @@ const Book = () => {
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-slate-800 dark:text-gray-100">{p.productname}</p>
                     <p className="text-sm text-sky-700 dark:text-sky-300 font-bold">₹{priceAfterDisc} x {qty}</p>
-                    <p className="text-xs text-slate-600 dark:text-gray-400">Stock: {p.stock}</p>
                     <div className="flex items-center gap-2 mt-2">
                       <button onClick={() => removeFromCart(p)} className="w-7 h-7 text-sm text-white dark:text-gray-100 rounded-full flex items-center justify-center" style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark }}><FaMinus /></button>
                       <span className="text-sm font-medium px-2 text-slate-800 dark:text-gray-100">{qty}</span>

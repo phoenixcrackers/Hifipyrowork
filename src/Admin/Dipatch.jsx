@@ -41,7 +41,7 @@ export default function Dispatch() {
       const filtered = response.data.filter((b) => {
         const totalQty = getTotalQty(b);
         const dispatched = b.dispatched_qty || 0;
-        return b.status === 'paid' || (b.status === 'dispatched' && dispatched < totalQty);
+        return b.status === 'booked' || (b.status === 'dispatched' && dispatched < totalQty) || b.status === 'paid';
       });
       setBookings(filtered);
     } catch (err) {
