@@ -106,26 +106,31 @@ export default function Ledger() {
   };
 
   const downloadReceipt = async (booking) => {
-    try {
-      const response = await fetch(`${API_BASE_URL}/api/dbooking/receipt/${booking.order_id}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch receipt: ${response.statusText}`);
-      }
-      const blob = await response.blob();
-      const safeName = (booking.customer_name || 'unknown').toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `${safeName}-${booking.order_id || 'unknown'}-receipt.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-    } catch (error) {
-      console.error('Failed to download receipt:', error);
-      alert('Unable to download receipt. Please try again or contact support.');
+  try {
+    const response = await fetch(`${API_BASE_URL}/api/dbooking/receipt/${booking.order_id}`);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch receipt: ${response.statusText}`);
     }
-  };
+    const contentDisposition = response.headers.get('Content-Disposition');
+    const filenameMatch = contentDisposition && contentDisposition.match(/filename="(.+)"/);
+    const filename = filenameMatch ? filenameMatch[1] : null;
+    if (!filename) {
+      throw new Error('Filename not found in response headers');
+    }
+    const blob = await response.blob();
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename; // Use filename from Content-Disposition
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  } catch (error) {
+    console.error('Failed to download receipt:', error);
+    alert('Unable to download receipt. Please try again or contact support.');
+  }
+};
 
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const pageCount = Math.ceil(filtered.length / PAGE_SIZE);
@@ -229,16 +234,18 @@ export default function Ledger() {
                   productName: log.product_name,
                   quantity: log.dispatched_qty,
                   ratePerBox: effectivePrice.toFixed(2),
-                  amount: `${amount.toFixed(2)} Dr`,
+                  debit: amount.toFixed(2),
+                  credit: "",
                   date: new Date(log.dispatched_at).getTime(),
                 };
               }),
               ...payments.map((payment, index) => ({
                 slNo: dispatchLogs.length + index + 1,
                 productName: `Payment (${payment.payment_method || "N/A"})`,
-                quantity: "-",
-                ratePerBox: "-",
-                amount: `${Number(payment.amount_paid).toFixed(2)} Cr`,
+                quantity: "",
+                ratePerBox: "",
+                debit: "",
+                credit: Number(payment.amount_paid).toFixed(2),
                 date: new Date(payment.created_at).getTime(),
               })),
             ].sort((a, b) => a.date - b.date); // Sort by date, earliest to latest
@@ -392,7 +399,8 @@ export default function Ledger() {
                         <th className="border border-gray-300 dark:border-gray-600 p-2 text-right">Quantity</th>
                         <th className="border border-gray-300 dark:border-gray-600 p-2 text-right">Rate/Box (₹)</th>
                         <th className="border border-gray-300 dark:border-gray-600 p-2 text-right">Date</th>
-                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-right">Amount (₹)</th>
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-right">Debit (₹)</th>
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-right">Credit (₹)</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -405,17 +413,29 @@ export default function Ledger() {
                           <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">
                             {formatDate(row.date)}
                           </td>
-                          <td className={`border border-gray-300 dark:border-gray-600 p-2 text-right ${row.amount.includes('Dr') ? 'text-red-600' : 'text-green-600'}`}>
-                            {row.amount}
+                          <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-red-600">
+                            {row.debit}
+                          </td>
+                          <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-green-600">
+                            {row.credit}
                           </td>
                         </tr>
                       ))}
                       <tr className="font-semibold">
                         <td className="border border-gray-300 dark:border-gray-600 p-2" colSpan={2}>Total</td>
                         <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">{totalQty}</td>
-                        <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">-</td>
-                        <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">-</td>
-                        <td className={`border border-gray-300 dark:border-gray-600 p-2 text-right ${netBalance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        <td className="border border-gray-300 dark:border-gray-600 p-2 text-right"></td>
+                        <td className="border border-gray-300 dark:border-gray-600 p-2 text-right"></td>
+                        <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-red-600">
+                          {debit.toFixed(2)}
+                        </td>
+                        <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-green-600">
+                          {credit.toFixed(2)}
+                        </td>
+                      </tr>
+                      <tr className="font-semibold">
+                        <td className="border border-gray-300 dark:border-gray-600 p-2" colSpan={5}>Net Balance</td>
+                        <td className={`border border-gray-300 dark:border-gray-600 p-2 text-right ${netBalance < 0 ? 'text-red-600' : 'text-green-600'}`} colSpan={2}>
                           {netBalance.toFixed(2)} {netBalance < 0 ? '(Outstanding)' : '(Advance)'}
                         </td>
                       </tr>
