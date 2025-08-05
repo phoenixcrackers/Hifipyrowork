@@ -3,6 +3,10 @@ import axios from 'axios';
 import { API_BASE_URL } from '../../Config';
 import Sidebar from './Sidebar/Sidebar';
 import Logout from './Logout';
+import pdfMake from "pdfmake/build/pdfmake";
+import pdfFonts from "pdfmake/build/vfs_fonts";
+
+pdfMake.vfs = pdfFonts.vfs;
 
 export default function Dispatch() {
   const [bookings, setBookings] = useState([]);
@@ -15,6 +19,7 @@ export default function Dispatch() {
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState('');
   const [productDispatches, setProductDispatches] = useState({});
+  const [taxPercent, setTaxPercent] = useState('');
 
   const cardsPerPage = 9;
 
@@ -53,63 +58,234 @@ export default function Dispatch() {
     fetchBookings();
   }, []);
 
-const handleDispatch = async () => {
-  const products = getParsedProducts(selectedBooking);
+  const handleDispatch = async () => {
+    const products = getParsedProducts(selectedBooking);
 
-  const toDispatch = products.map((product, index) => {
-    const already = parseInt(product.dispatched || 0);
-    const qty = parseInt(productDispatches[index]) || 0;
-    const remaining = parseInt(product.quantity) - already;
-    const price = parseFloat(product.price) || 0;
-    const discount = parseFloat(product.discount || 0);
-    const dispatchQty = Math.min(qty, remaining);
-    const productTotal = (price - (price * discount / 100)) * dispatchQty;
-    return {
-      index,
-      dispatch_qty: dispatchQty,
-      total: productTotal.toFixed(2),
-    };
-  }).filter(p => p.dispatch_qty > 0);
+    const toDispatch = products.map((product, index) => {
+      const already = parseInt(product.dispatched || 0);
+      const qty = parseInt(productDispatches[index]) || 0;
+      const remaining = parseInt(product.quantity) - already;
+      const price = parseFloat(product.price) || 0;
+      const discount = parseFloat(product.discount || 0);
+      const dispatchQty = Math.min(qty, remaining);
+      const productTotal = (price - (price * discount / 100)) * dispatchQty;
+      return {
+        index,
+        dispatch_qty: dispatchQty,
+        total: productTotal.toFixed(2),
+      };
+    }).filter(p => p.dispatch_qty > 0);
 
-  if (toDispatch.length === 0) {
-    setError('Please enter valid dispatch quantities for at least one product');
-    return;
-  }
+    if (toDispatch.length === 0) {
+      setError('Please enter valid dispatch quantities for at least one product');
+      return;
+    }
 
-  try {
-    const payload = {
-      status: 'dispatched',
-      products: toDispatch,
-    };
-
-    if (transportType) {
-      payload.transport_type = transportType;
-      if (transportType === 'transport') {
-        payload.transport_name = transportName;
-        payload.transport_contact = transportContact;
-        payload.lr_number = lrNumber;
+    if (transportType === 'transport') {
+      if (!transportName.trim() || !lrNumber.trim()) {
+        setError('Transport Name and LR Number are required when using transport.');
+        return;
       }
     }
 
-    console.log('Dispatch Payload:', payload); // Add for debugging
+    try {
+      const payload = {
+        status: 'dispatched',
+        products: toDispatch,
+      };
 
-    await axios.patch(
-      `${API_BASE_URL}/api/tracking/bookings/order/${selectedBooking.order_id}/status`,
-      payload
-    );
+      if (transportType) {
+        payload.transport_type = transportType;
+        if (transportType === 'transport') {
+          payload.transport_name = transportName;
+          payload.transport_contact = transportContact;
+          payload.lr_number = lrNumber;
+        }
+      }
 
-    await fetchBookings();
-    setSelectedBooking(null);
-    setTransportType('');
-    setTransportName('');
-    setTransportContact('');
-    setLrNumber('');
-    setProductDispatches({});
-    setError('');
-  } catch (err) {
-    setError(`Failed to update dispatch status: ${err.response?.data?.error || err.message}`);
-  }
-};
+      console.log('Dispatch Payload:', payload);
+
+      await axios.patch(
+        `${API_BASE_URL}/api/tracking/bookings/order/${selectedBooking.order_id}/status`,
+        payload
+      );
+
+      generatePDF(selectedBooking, toDispatch);
+
+      await fetchBookings();
+      setSelectedBooking(null);
+      setTransportType('');
+      setTransportName('');
+      setTransportContact('');
+      setLrNumber('');
+      setProductDispatches({});
+      setError('');
+    } catch (err) {
+      setError(`Failed to update dispatch status: ${err.response?.data?.error || err.message}`);
+    }
+  };
+
+  const generatePDF = (booking, toDispatch) => {
+    const products = getParsedProducts(booking);
+
+    let pfAmount = 0;
+    try {
+      const extras = typeof booking.extra_charges === 'string'
+        ? JSON.parse(booking.extra_charges)
+        : booking.extra_charges;
+      pfAmount = parseFloat(extras?.pf) || 0;
+    } catch {
+      pfAmount = 0;
+    }
+
+    const dispatchProducts = products
+      .map((p, i) => {
+        const dispatchQty = toDispatch.find(d => d.index === i)?.dispatch_qty || 0;
+        if (dispatchQty === 0) return null;
+        const originalRate = parseFloat(p.price) || 0;
+        const discount = parseFloat(p.discount || 0);
+        const finalRate = originalRate - (originalRate * discount / 100);
+        return {
+          name: p.productname || `Product ${i + 1}`,
+          qty: dispatchQty,
+          originalRate: originalRate.toFixed(2),
+          discount: `${discount}%`,
+          finalRate: finalRate.toFixed(2),
+          amount: (dispatchQty * finalRate).toFixed(2),
+        };
+      })
+      .filter(p => p !== null);
+
+    const subtotal = dispatchProducts.reduce((sum, p) => sum + parseFloat(p.amount), 0);
+    const taxRate = parseFloat(taxPercent);
+    const hasTax = !isNaN(taxRate) && taxRate > 0;
+    const taxAmount = hasTax ? subtotal * (taxRate / 100) : 0;
+    const total = subtotal + taxAmount + pfAmount;
+
+    const docDefinition = {
+      content: [
+        {
+          text: 'Hifi Pyro Park',
+          style: 'companyName'
+        },
+        {
+          text: 'Address: Sattur Road, Sivakasi\nEmail: nivasramasamy27@gmail.com\nPhone: +91 63836 59214, +91 96554 56167\n\n',
+          style: 'companyDetails'
+        },
+        { text: 'PROFORMA', style: 'invoiceTitle' },
+        {
+          columns: [
+            {
+              width: '48%',
+              stack: [
+                { text: 'Customer Details', style: 'sectionHeader' },
+                { text: `Name: ${booking.customer_name || '-'}`, margin: [0, 2] },
+                { text: `Order ID: ${booking.order_id || '-'}`, margin: [0, 2] },
+                { text: `Mobile: ${booking.mobile_number || '-'}`, margin: [0, 2] },
+                { text: `Email: ${booking.email || '-'}`, margin: [0, 2] },
+                { text: `Address: ${booking.address || '-'}`, margin: [0, 2] }
+              ],
+              margin: [0, 10, 0, 10],
+              style: 'boxedSection'
+            },
+            {
+              width: '48%',
+              stack: [
+                { text: 'Transport Details', style: 'sectionHeader' },
+                { text: `Type: ${booking.transport_type || '-'}`, margin: [0, 2] },
+                { text: `Transport Name: ${booking.transport_name || '-'}`, margin: [0, 2] },
+                { text: `Contact: ${booking.transport_contact || '-'}`, margin: [0, 2] },
+                { text: `LR Number: ${booking.lr_number || '-'}`, margin: [0, 2] },
+              ],
+              margin: [0, 10, 0, 10],
+              style: 'boxedSection'
+            }
+          ],
+          columnGap: 20
+        },
+        {
+          table: {
+            headerRows: 1,
+            widths: ['auto', '*', 'auto', 'auto', 'auto', 'auto', 'auto'],
+            body: [
+              [
+                { text: 'S.No', style: 'tableHeader' },
+                { text: 'Product', style: 'tableHeader' },
+                { text: 'Qty', style: 'tableHeader', alignment: 'right' },
+                { text: 'Original Rate', style: 'tableHeader', alignment: 'right' },
+                { text: 'Discount', style: 'tableHeader', alignment: 'right' },
+                { text: 'Final Rate', style: 'tableHeader', alignment: 'right' },
+                { text: 'Amount', style: 'tableHeader', alignment: 'right' },
+              ],
+              ...dispatchProducts.map((p, i) => [
+                i + 1,
+                p.name,
+                { text: p.qty.toString(), alignment: 'right' },
+                { text: `₹${p.originalRate}`, alignment: 'right' },
+                { text: p.discount, alignment: 'right' },
+                { text: `₹${p.finalRate}`, alignment: 'right' },
+                { text: `₹${p.amount}`, alignment: 'right' },
+              ]),
+            ]
+          },
+          layout: 'lightHorizontalLines',
+          margin: [0, 20, 0, 10]
+        },
+        {
+          table: {
+            widths: ['*', 'auto'],
+            body: [
+              ['Subtotal', `₹${subtotal.toFixed(2)}`],
+              ...(hasTax ? [[`Tax (${taxRate}%)`, `₹${taxAmount.toFixed(2)}`]] : []),
+              ...(pfAmount > 0 ? [['Processing Fee (PF)', `₹${pfAmount.toFixed(2)}`]] : []),
+              [{ text: 'Total', bold: true }, { text: `₹${total.toFixed(2)}`, bold: true }]
+            ]
+          },
+          layout: {
+            hLineWidth: () => 0,
+            vLineWidth: () => 0,
+          },
+          alignment: 'right',
+          margin: [0, 10, 0, 0]
+        }
+      ],
+      styles: {
+        companyName: {
+          fontSize: 22,
+          bold: true,
+          alignment: 'center',
+          color: '#1a237e',
+          margin: [0, 0, 0, 5]
+        },
+        companyDetails: {
+          fontSize: 10,
+          alignment: 'center',
+          margin: [0, 0, 0, 15]
+        },
+        invoiceTitle: {
+          fontSize: 16,
+          bold: true,
+          alignment: 'center',
+          margin: [0, 0, 0, 10]
+        },
+        sectionHeader: {
+          bold: true,
+          fontSize: 12,
+          margin: [0, 0, 0, 5]
+        },
+        tableHeader: {
+          bold: true,
+          fillColor: '#eeeeee'
+        },
+        boxedSection: {
+          border: [false, false, false, true]
+        }
+      }
+    };
+
+    const fileName = `Proforma_${booking.customer_name?.replace(/\\s+/g, '_')}_${booking.order_id}.pdf`;
+    pdfMake.createPdf(docDefinition).download(fileName);
+  };
 
   const handleProductDispatchChange = (index, value, maxQty) => {
     const qty = parseInt(value) || 0;
@@ -202,7 +378,7 @@ const handleDispatch = async () => {
                         <button
                           onClick={() => {
                             setSelectedBooking(booking);
-                            setProductDispatches({}); // Reset product dispatches
+                            setProductDispatches({});
                           }}
                           className="bg-blue-600 dark:bg-blue-500 text-white p-2 rounded mt-2 w-full hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
                         >
@@ -218,7 +394,7 @@ const handleDispatch = async () => {
                 <button
                   onClick={handlePrevious}
                   disabled={currentPage === 1}
-                  className={`px-4 py-2 rounded text-white ${currentPage === 1 ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600'}`}
+                  className={`px-4 py-2 rounded text-white ${currentPage === 1 ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg وضعیت: blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600'}`}
                 >
                   Previous
                 </button>
@@ -249,7 +425,6 @@ const handleDispatch = async () => {
                 Dispatch Order: {selectedBooking.order_id}
               </h2>
 
-              {/* Per-product dispatch fields */}
               <div className="space-y-4 mb-4">
                 {getParsedProducts(selectedBooking).map((product, index) => {
                   const already = parseInt(product.dispatched || 0);
@@ -290,7 +465,6 @@ const handleDispatch = async () => {
                 })}
               </div>
 
-              {/* Transport selection */}
               <select
                 value={transportType}
                 onChange={(e) => setTransportType(e.target.value)}
@@ -307,27 +481,41 @@ const handleDispatch = async () => {
                     type="text"
                     value={transportName}
                     onChange={(e) => setTransportName(e.target.value)}
-                    placeholder="Transport Name"
-                    className="p-2 border border-gray-300 dark:border-gray-600 rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100"
+                    placeholder="Transport Name *"
+                    className={`p-2 border rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 ${
+                      error && !transportName.trim()
+                        ? 'border-red-500 dark:border-red-400'
+                        : 'border-gray-300 dark:border-gray-600'
+                    }`}
                   />
                   <input
                     type="text"
                     value={transportContact}
                     onChange={(e) => setTransportContact(e.target.value)}
-                    placeholder="Contact Number"
+                    placeholder="Contact Number (optional)"
                     className="p-2 border border-gray-300 dark:border-gray-600 rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100"
                   />
                   <input
                     type="text"
                     value={lrNumber}
                     onChange={(e) => setLrNumber(e.target.value)}
-                    placeholder="LR Number"
+                    placeholder="LR Number *"
+                    className={`p-2 border rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 ${
+                      error && !lrNumber.trim()
+                        ? 'border-red-500 dark:border-red-400'
+                        : 'border-gray-300 dark:border-gray-600'
+                    }`}
+                  />
+                  <input
+                    type="number"
+                    value={taxPercent}
+                    onChange={(e) => setTaxPercent(e.target.value)}
+                    placeholder="Tax % (optional)"
                     className="p-2 border border-gray-300 dark:border-gray-600 rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100"
                   />
                 </>
               )}
 
-              {/* Actions */}
               <div className="flex justify-end gap-4">
                 <button
                   onClick={() => setSelectedBooking(null)}

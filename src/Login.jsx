@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { FaEye, FaEyeSlash } from 'react-icons/fa';
 import { API_BASE_URL } from '../Config';
+import { API_BASE_URL_loc } from '../Config';
 import './App.css';
 
 const Login = () => {
@@ -58,7 +59,7 @@ const Login = () => {
 
   useEffect(() => {
     // Fetch states
-    fetch(`https://funwithcrackersbackend-production.up.railway.app/api/locations/states`)
+    fetch(`${API_BASE_URL_loc}/api/locations/states`)
       .then(res => res.json())
       .then(data => setStates(data))
       .catch(err => {
@@ -70,7 +71,7 @@ const Login = () => {
 
   useEffect(() => {
     if (formData.state) {
-      fetch(`https://funwithcrackersbackend-production.up.railway.app/api/locations/states/${encodeURIComponent(formData.state)}/districts`)
+      fetch(`${API_BASE_URL_loc}/api/locations/states/${encodeURIComponent(formData.state)}/districts`)
         .then(res => res.json())
         .then(data => setDistricts(data))
         .catch(err => {

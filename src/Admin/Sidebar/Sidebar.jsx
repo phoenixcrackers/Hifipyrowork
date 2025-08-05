@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { FaBox,FaChartBar,FaBars,FaTimes,FaStackExchange,FaUsers,FaShoppingCart,FaLocationArrow,FaTruck,FaDollarSign,FaMoneyCheck,FaCoins,FaMoneyBill} from 'react-icons/fa';
+import { FaBox, FaChartBar, FaBars, FaTimes, FaStackExchange, FaUsers, FaShoppingCart, FaLocationArrow, FaTruck, FaDollarSign, FaMoneyCheck, FaCoins, FaMoneyBill } from 'react-icons/fa';
 
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,7 +26,7 @@ export default function Sidebar() {
     <>
       {!isOpen && (
         <button
-          className="md:hidden fixed top-4 left-4 z-50 text-white bg-gray-800 p-2 rounded-md"
+          className="hundred:hidden fixed top-4 left-4 z-50 text-white bg-gray-800 p-2 rounded-md transition-transform duration-300 hover:scale-110"
           onClick={toggleSidebar}
         >
           <FaBars size={24} />
@@ -34,17 +34,17 @@ export default function Sidebar() {
       )}
 
       <div
-        className={`fixed top-0 left-0 h-screen bg-black/70 text-white flex flex-col transition-transform duration-300 ease-in-out ${
+        className={`fixed top-0 left-0 h-screen bg-black/70 text-white flex flex-col transition-transform duration-500 ease-in-out transform ${
           isOpen ? 'translate-x-0' : '-translate-x-full'
-        } md:translate-x-0 md:w-64 w-64 z-40`}
+        } hundred:translate-x-0 hundred:w-64 w-64 z-40 shadow-lg`}
       >
         <div className="p-4 text-xl font-bold border-b border-gray-700 flex items-center justify-between">
           Admin
-          <button className="md:hidden text-white" onClick={toggleSidebar}>
+          <button className="hundred:hidden text-white" onClick={toggleSidebar}>
             <FaTimes size={20} />
           </button>
         </div>
-        <nav className="flex-1 mt-4">
+        <nav className="flex-1 mt-4 overflow-y-auto">
           <ul>
             {navItems.map((item) => (
               <li key={item.name}>
@@ -53,7 +53,7 @@ export default function Sidebar() {
                   className={({ isActive }) =>
                     `flex items-center py-3 px-6 text-sm font-medium hover:bg-black/50 transition-colors ${
                       isActive ? 'bg-gray-900 text-white' : ''
-                    }`
+                    } hundred:hover:bg-opacity-70 hundred:rounded-r-lg`
                   }
                   onClick={() => setIsOpen(false)}
                 >
@@ -68,7 +68,7 @@ export default function Sidebar() {
 
       {isOpen && (
         <div
-          className="fixed inset-0 bg-black/50 bg-opacity-30 z-30 md:hidden"
+          className="fixed inset-0 bg-black/50 bg-opacity-30 z-30 hundred:hidden transition-opacity duration-500"
           onClick={toggleSidebar}
         ></div>
       )}

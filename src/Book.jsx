@@ -320,7 +320,7 @@ const Book = () => {
             placeholder="Search by name or serial number" 
             value={state.search} 
             onChange={e => setState(s => ({ ...s, search: e.target.value }))} 
-            className="rounded-xl px-4 w-80 h-12 text-lg text-slate-800 dark:text-gray-100 font-medium focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800" 
+            className="rounded-xl px-4 w-80 h-12 text-lg text-slate-800 dark:text-gray-800 font-medium focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-800" 
             style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark, backdropFilter: styles.input.backdropFilter }}
           />
         </div>
@@ -480,19 +480,19 @@ const Book = () => {
       </motion.aside>
       {state.showForm && (
         <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ duration: 0.3 }} className="fixed inset-0 flex items-center justify-center z-50 ">
-          <div className="w-full max-w-md mx-4 p-6 rounded-xl  bg-white dark:bg-gray-800" style={{ background: styles.modal.background, backgroundDark: styles.modal.backgroundDark, border: styles.modal.border, borderDark: styles.modal.borderDark, boxShadow: styles.modal.boxShadow, boxShadowDark: styles.modal.boxShadowDark }}>
+          <div className="w-full max-w-xl mx-4 p-6 rounded-xl  bg-white dark:bg-gray-800" style={{ background: styles.modal.background, backgroundDark: styles.modal.backgroundDark, border: styles.modal.border, borderDark: styles.modal.borderDark, boxShadow: styles.modal.boxShadow, boxShadowDark: styles.modal.boxShadowDark }}>
             <h2 className="text-lg font-bold text-sky-800 dark:text-sky-800 mb-4">{state.isEditing ? 'Edit Profile' : 'Customer Details'}</h2>
-            <div className="space-y-4">
+            <div className="space-y-4 hundred:gap-x-5 hundred:grid hundred:grid-cols-2">
               {[
-                { label: "Customer Name", key: "customer_name", type: "text", placeholder: "Enter name", required: true, disabled: true },
-                { label: "Company Name", key: "company_name", type: "text", placeholder: "Enter company name", required: true, disabled: !state.isEditing },
-                { label: "License Number", key: "license_number", type: "text", placeholder: "Enter license number (optional)", disabled: !state.isEditing },
-                { label: "Address", key: "address", type: "textarea", placeholder: "Enter address", required: true, disabled: !state.isEditing },
-                { label: "State", key: "state", type: "select", options: state.states, required: true, disabled: !state.isEditing },
-                { label: "District", key: "district", type: "select", options: state.districts, required: true, disabled: !state.isEditing || !state.customer.state },
-                { label: "Mobile Number", key: "customer_name", type: "text", placeholder: "Enter mobile number", required: true, disabled: !state.isEditing },
-                { label: "Email", key: "email", type: "email", placeholder: "Enter email", required: true, disabled: !state.isEditing }
-              ].map(({ label, key, type, placeholder, required, options, disabled }) => (
+                { label: "Customer Name", key: "customer_name", type: "text", placeholder: "Enter name", required: true, },
+                { label: "Company Name", key: "company_name", type: "text", placeholder: "Enter company name", required: true, },
+                { label: "License Number", key: "license_number", type: "text", placeholder: "Enter license number (optional)", },
+                { label: "Address", key: "address", type: "textarea", placeholder: "Enter address", required: true,},
+                { label: "State", key: "state", type: "select", options: state.states, required: true, },
+                { label: "District", key: "district", type: "select", options: state.districts, required: true,},
+                { label: "Mobile Number", key: "customer_name", type: "text", placeholder: "Enter mobile number", required: true, },
+                { label: "Email", key: "email", type: "email", placeholder: "Enter email", required: true,  }
+              ].map(({ label, key, type, placeholder, required, options }) => (
                 <div key={key}>
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-700">{label} {required && '*'}</label>
                   {type === "select" ? (
@@ -501,8 +501,7 @@ const Book = () => {
                       onChange={e => handleInputChange(key, e.target.value)} 
                       className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
                       style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark }} 
-                      required={required} 
-                      disabled={disabled}
+                      required={required}
                     >
                       <option value="" className="bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100">Select {label}</option>
                       {options.map(opt => <option key={opt.id || opt.name} value={opt.name} className="bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100">{opt.name}</option>)}
@@ -514,8 +513,7 @@ const Book = () => {
                       placeholder={placeholder} 
                       className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
                       style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark }} 
-                      required={required} 
-                      disabled={disabled} 
+                      required={required}
                     />
                   ) : (
                     <input 
@@ -525,8 +523,7 @@ const Book = () => {
                       placeholder={placeholder} 
                       className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
                       style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark }} 
-                      required={required} 
-                      disabled={disabled} 
+                      required={required}
                     />
                   )}
                 </div>

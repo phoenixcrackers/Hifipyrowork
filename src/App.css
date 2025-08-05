@@ -3,5 +3,6 @@
 @theme {
   --breakpoint-hundred: 1550px;
   --breakpoint-onefifty: 1024px;
+  --breakpoint-tab: 768px;
   --breakpoint-mobile: 350px;
 }

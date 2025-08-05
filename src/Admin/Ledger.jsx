@@ -5,6 +5,7 @@ import { API_BASE_URL } from "../../Config";
 import { ArrowRight, X } from "lucide-react";
 import Logout from "./Logout";
 import { jsPDF } from "jspdf";
+import axios from "axios";
 
 Modal.setAppElement("#root");
 
@@ -18,9 +19,33 @@ const formatDate = (date) => {
   return `${day}/${month}/${year}`;
 };
 
+const parseExtraCharges = (charges) => {
+  if (!charges) return { pf: 0, tax: 0, minus: 0 };
+  if (typeof charges === "string") {
+    try {
+      return JSON.parse(charges);
+    } catch {
+      return { pf: 0, tax: 0, minus: 0 };
+    }
+  }
+  return charges;
+};
+
 const generateReceiptId = () => {
   const randomNum = Math.floor(100000000 + Math.random() * 900000000); // 9-digit random number
   return `rcp${randomNum}`;
+};
+
+const calculateSubtotal = (products) => {
+  if (!Array.isArray(products)) return 0;
+  return products.reduce((total, product) => {
+    const price = parseFloat(product.price) || 0;
+    const qty = parseFloat(product.quantity) || 0;
+    const discount = parseFloat(product.discount) || 0;
+    const lineTotal = price * qty;
+    const discounted = lineTotal - (lineTotal * discount) / 100;
+    return total + discounted;
+  }, 0);
 };
 
 export default function Ledger() {
@@ -34,8 +59,37 @@ export default function Ledger() {
   const [searchQuery, setSearchQuery] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [receiptError, setReceiptError] = useState(null);
+  const [admins, setAdmins] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
+  const [selectedTransactionType, setSelectedTransactionType] = useState("");
+  const [isTransactionModalOpen, setIsTransactionModalOpen] = useState(false);
+
+  const fetchAdmins = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/admins`);
+      setAdmins(response.data);
+    } catch (err) {
+      console.error("Failed to fetch admins:", err);
+    }
+  };
+
+  const fetchBankAccounts = async (adminId) => {
+    try {
+      const admin = admins.find((a) => a.id === adminId);
+      if (admin) {
+        const response = await axios.get(`${API_BASE_URL}/api/admins/${admin.username}/bank-accounts`);
+        setBankAccounts(response.data || []);
+      } else {
+        setBankAccounts([]);
+      }
+    } catch (err) {
+      console.error("Failed to fetch bank accounts:", err);
+      setBankAccounts([]);
+    }
+  };
 
   useEffect(() => {
+    fetchAdmins();
     fetch(`${API_BASE_URL}/api/tracking/bookings`)
       .then((res) => res.json())
       .then((data) => {
@@ -46,21 +100,33 @@ export default function Ledger() {
   }, []);
 
   const openModal = async (booking) => {
+    if (!booking) return;
     setSelectedBooking(booking);
     setModalIsOpen(true);
     setShowDetailedView(false);
     setReceiptError(null);
+    setSelectedTransactionType("");
+    setIsTransactionModalOpen(false);
     document.body.classList.add("overflow-hidden");
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/dispatch_logs/${booking.order_id}`);
-      const { dispatch_logs, payments } = await res.json();
-      setDispatchLogs(dispatch_logs);
-      setPayments(payments);
+      const [dispatchRes, paymentRes] = await Promise.all([
+        fetch(`${API_BASE_URL}/api/dispatch_logs/${booking.order_id}`),
+        axios.get(`${API_BASE_URL}/api/transactions/${booking.id}`),
+      ]);
+      const { dispatch_logs } = await dispatchRes.json();
+      setDispatchLogs(dispatch_logs || []);
+      setPayments(paymentRes.data || []);
+      const adminId = paymentRes.data[0]?.admin_id;
+      if (adminId) {
+        await fetchBankAccounts(adminId);
+      }
     } catch (err) {
-      console.error("Failed to fetch dispatch logs:", err);
+      console.error("Failed to fetch data:", err);
       setDispatchLogs([]);
       setPayments([]);
+      setBankAccounts([]);
+      setReceiptError("Failed to fetch transaction or dispatch data.");
     }
   };
 
@@ -71,7 +137,20 @@ export default function Ledger() {
     setModalIsOpen(false);
     setShowDetailedView(false);
     setReceiptError(null);
+    setSelectedTransactionType("");
+    setIsTransactionModalOpen(false);
+    setBankAccounts([]);
     document.body.classList.remove("overflow-hidden");
+  };
+
+  const handleTransactionTypeSelect = (type) => {
+    setSelectedTransactionType(type);
+    setIsTransactionModalOpen(true);
+  };
+
+  const closeTransactionModal = () => {
+    setIsTransactionModalOpen(false);
+    setSelectedTransactionType("");
   };
 
   const calculateDebit = (dispatchLogs, products, extraCharges) => {
@@ -85,13 +164,13 @@ export default function Ledger() {
         total += effectivePrice * (log.dispatched_qty || 0);
       }
     });
-    const extraTotal = (parseFloat(extraCharges.tax || 0) + parseFloat(extraCharges.pf || 0) + parseFloat(extraCharges.minus || 0));
+    const extraTotal = parseFloat(extraCharges.tax || 0) + parseFloat(extraCharges.pf || 0) - parseFloat(extraCharges.minus || 0);
     return total + extraTotal;
   };
 
   const getStatusBadge = (status) => {
     const base = "inline-block text-xs font-semibold px-2 py-1 rounded-full";
-    switch (status.toLowerCase()) {
+    switch (status?.toLowerCase()) {
       case "completed":
         return `${base} bg-green-100 text-green-700`;
       case "pending":
@@ -108,242 +187,235 @@ export default function Ledger() {
     setSearchQuery(val);
     setCurrentPage(1);
     const filtered = bookings.filter(
-      (b) =>
-        b.customer_name.toLowerCase().includes(val) ||
-        b.order_id.toLowerCase().includes(val)
+      (b) => b.customer_name?.toLowerCase().includes(val) || b.order_id?.toLowerCase().includes(val)
     );
     setFiltered(filtered);
   };
 
   const downloadReceipt = (booking) => {
-    setReceiptError(null)
+    if (!booking) return;
+    setReceiptError(null);
     try {
-      const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" })
-      const pageWidth = doc.internal.pageSize.width
-      const pageHeight = doc.internal.pageSize.height
-      const margin = 40
-      const receiptId = generateReceiptId()
+      const doc = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+      const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
+      const margin = 40;
+      const receiptId = generateReceiptId();
 
-      const safeName = booking.customer_name
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "")
+      const safeName = booking.customer_name?.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "customer";
 
-      let yPosition = 60
+      let yPosition = 60;
 
       // Header Section
-      doc.setFontSize(10)
-      doc.setFont("helvetica", "normal")
-      doc.text(`Receipt ID: ${receiptId}`, pageWidth - margin, yPosition, { align: "right" })
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.text(`Receipt ID: ${receiptId}`, pageWidth - margin, yPosition, { align: "right" });
 
-      yPosition += 30
-      doc.setFontSize(18)
-      doc.setFont("helvetica", "bold")
-      doc.text("RECEIPT", pageWidth / 2, yPosition, { align: "center" })
+      yPosition += 30;
+      doc.setFontSize(18);
+      doc.setFont("helvetica", "bold");
+      doc.text("RECEIPT", pageWidth / 2, yPosition, { align: "center" });
 
-      yPosition += 40
-      doc.setFontSize(10)
-      doc.setFont("helvetica", "bold")
-      doc.text("Hifi Pyro Park", margin, yPosition)
+      yPosition += 40;
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.text("Hifi Pyro Park", margin, yPosition);
 
-      yPosition += 15
-      doc.setFont("helvetica", "normal")
-      doc.text("Anil Kumar Eye Hospital Opp, Sattur Road, Sivakasi", margin, yPosition)
+      yPosition += 15;
+      doc.setFont("helvetica", "normal");
+      doc.text("Anil Kumar Eye Hospital Opp, Sattur Road, Sivakasi", margin, yPosition);
 
-      yPosition += 15
-      doc.text("Mobile: +91 63836 59214", margin, yPosition)
+      yPosition += 15;
+      doc.text("Mobile: +91 63836 59214", margin, yPosition);
 
-      yPosition += 15
-      doc.text("Email: nivasramasamy27@gmail.com", margin, yPosition)
+      yPosition += 15;
+      doc.text("Email: nivasramasamy27@gmail.com", margin, yPosition);
 
       // Customer Details (Right side)
-      let rightYPosition = yPosition - 45
-      doc.text(`Customer: ${booking.customer_name || "N/A"}`, pageWidth - margin, rightYPosition, { align: "right" })
+      let rightYPosition = yPosition - 45;
+      doc.text(`Customer: ${booking.customer_name || "N/A"}`, pageWidth - margin, rightYPosition, { align: "right" });
 
-      rightYPosition += 15
-      doc.text(`Contact: ${booking.mobile_number || "N/A"}`, pageWidth - margin, rightYPosition, { align: "right" })
+      rightYPosition += 15;
+      doc.text(`Contact: ${booking.mobile_number || "N/A"}`, pageWidth - margin, rightYPosition, { align: "right" });
 
-      rightYPosition += 15
-      doc.text(`City: ${booking.district || "N/A"}`, pageWidth - margin, rightYPosition, { align: "right" })
+      rightYPosition += 15;
+      doc.text(`City: ${booking.district || "N/A"}`, pageWidth - margin, rightYPosition, { align: "right" });
 
-      rightYPosition += 15
+      rightYPosition += 15;
       doc.text(`Order Date: ${formatDate(booking.created_at || new Date())}`, pageWidth - margin, rightYPosition, {
         align: "right",
-      })
+      });
 
-      yPosition += 60
+      yPosition += 60;
 
-      // Table Setup - 5 columns for payments only
-      const tableStartY = yPosition
-      const tableWidth = pageWidth - 2 * margin
-      const colWidths = [40, 120, 120, 80, 120] // Adjusted: Sl.No, Payment Type, Paid to Admin, Date, Amount (increased Amount column)
-      const colPositions = [margin]
+      // Table Setup - 6 columns for payments including bank_name
+      const tableWidth = pageWidth - 2 * margin;
+      const colWidths = [40, 100, 100, 100, 80, 100];
+      const colPositions = [margin];
 
       for (let i = 0; i < colWidths.length - 1; i++) {
-        colPositions.push(colPositions[i] + colWidths[i])
+        colPositions.push(colPositions[i] + colWidths[i]);
       }
 
       // Table Headers
-      doc.setFontSize(9)
-      doc.setFont("helvetica", "bold")
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
 
-      const headers = ["Sl.No", "Payment Type", "Paid to", "Date", "Amount"]
+      const headers = ["Sl.No", "Payment Type", "Bank Name", "Paid to", "Date", "Amount"];
 
       // Draw header background
-      doc.setFillColor(240, 240, 240)
-      doc.rect(margin, yPosition - 5, tableWidth, 20, "F")
+      doc.setFillColor(240, 240, 240);
+      doc.rect(margin, yPosition - 5, tableWidth, 20, "F");
 
       // Draw header borders
-      doc.setLineWidth(0.5)
-      doc.rect(margin, yPosition - 5, tableWidth, 20)
+      doc.setLineWidth(0.5);
+      doc.rect(margin, yPosition - 5, tableWidth, 20);
 
       // Vertical lines for headers
       for (let i = 1; i < colPositions.length; i++) {
-        doc.line(colPositions[i], yPosition - 5, colPositions[i], yPosition + 15)
+        doc.line(colPositions[i], yPosition - 5, colPositions[i], yPosition + 15);
       }
 
       // Header text
       headers.forEach((header, i) => {
-        const textX = colPositions[i] + colWidths[i] / 2
-        doc.text(header, textX, yPosition + 8, { align: "center" })
-      })
+        const textX = colPositions[i] + colWidths[i] / 2;
+        doc.text(header, textX, yPosition + 8, { align: "center" });
+      });
 
-      yPosition += 20
+      yPosition += 20;
 
-      // Table Data - ONLY PAYMENTS
-      doc.setFont("helvetica", "normal")
-      doc.setFontSize(8)
+      // Table Data - Payments
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
 
-      // Only payment data, sorted by date
       const tableData = payments
         .map((payment, index) => ({
           slNo: (index + 1).toString(),
           paymentType: payment.payment_method || "N/A",
+          bankName: payment.bank_name || "N/A",
           paidToAdmin: payment.admin_username || "N/A",
-          date: formatDate(payment.created_at),
+          date: formatDate(payment.transaction_date || payment.created_at),
           amount: Number.parseFloat(payment.amount_paid || "0").toFixed(2),
-          dateSort: new Date(payment.created_at).getTime(),
+          dateSort: new Date(payment.transaction_date || payment.created_at).getTime(),
         }))
-        .sort((a, b) => a.dateSort - b.dateSort)
+        .sort((a, b) => a.dateSort - b.dateSort);
 
       // Draw table rows
       tableData.forEach((row) => {
         if (yPosition > pageHeight - 100) {
-          doc.addPage()
-          yPosition = 60
+          doc.addPage();
+          yPosition = 60;
 
           // Redraw headers on new page
-          doc.setFontSize(9)
-          doc.setFont("helvetica", "bold")
-          doc.setFillColor(240, 240, 240)
-          doc.rect(margin, yPosition - 5, tableWidth, 20, "F")
-          doc.rect(margin, yPosition - 5, tableWidth, 20)
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "bold");
+          doc.setFillColor(240, 240, 240);
+          doc.rect(margin, yPosition - 5, tableWidth, 20, "F");
+          doc.rect(margin, yPosition - 5, tableWidth, 20);
 
           for (let i = 1; i < colPositions.length; i++) {
-            doc.line(colPositions[i], yPosition - 5, colPositions[i], yPosition + 15)
+            doc.line(colPositions[i], yPosition - 5, colPositions[i], yPosition + 15);
           }
 
           headers.forEach((header, i) => {
-            const textX = colPositions[i] + colWidths[i] / 2
-            doc.text(header, textX, yPosition + 8, { align: "center" })
-          })
+            const textX = colPositions[i] + colWidths[i] / 2;
+            doc.text(header, textX, yPosition + 8, { align: "center" });
+          });
 
-          yPosition += 20
-          doc.setFont("helvetica", "normal")
-          doc.setFontSize(8)
+          yPosition += 20;
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
         }
 
         // Draw row border
-        doc.rect(margin, yPosition, tableWidth, 15)
+        doc.rect(margin, yPosition, tableWidth, 15);
 
         // Draw vertical lines
         for (let i = 1; i < colPositions.length; i++) {
-          doc.line(colPositions[i], yPosition, colPositions[i], yPosition + 15)
+          doc.line(colPositions[i], yPosition, colPositions[i], yPosition + 15);
         }
 
-        // Row data - only payment information
-        const rowData = [row.slNo, row.paymentType, row.paidToAdmin, row.date, `Rs.${row.amount}`]
+        // Row data
+        const rowData = [row.slNo, row.paymentType, row.bankName, row.paidToAdmin, row.date, `Rs.${row.amount}`];
 
         rowData.forEach((data, i) => {
           if (data) {
-            const textX = colPositions[i] + colWidths[i] / 2
-            const maxWidth = colWidths[i] - 4
-
-            if (i === 1 || i === 2) {
-              // Payment Type and Admin columns - center align
-              doc.text(data, textX, yPosition + 10, { align: "center", maxWidth })
-            } else {
-              // Other columns - center align
-              doc.text(data, textX, yPosition + 10, { align: "center", maxWidth })
-            }
+            const textX = colPositions[i] + colWidths[i] / 2;
+            const maxWidth = colWidths[i] - 4;
+            doc.text(data, textX, yPosition + 10, { align: "center", maxWidth });
           }
-        })
+        });
 
-        yPosition += 15
-      })
+        yPosition += 15;
+      });
 
       // Extra charges section
-      const extraCharges = booking.extra_charges || {}
-      const tax = Number.parseFloat(extraCharges.tax?.toString() || "0")
-      const pf = Number.parseFloat(extraCharges.pf?.toString() || "0")
-      const minus = Number.parseFloat(extraCharges.minus?.toString() || "0")
+      const extraCharges = parseExtraCharges(booking.extra_charges);
+      const tax = Number.parseFloat(extraCharges.tax || 0);
+      const pf = Number.parseFloat(extraCharges.pf || 0);
+      const minus = Number.parseFloat(extraCharges.minus || 0);
 
       if (tax || pf || minus) {
-        yPosition += 10
-        doc.setFontSize(8)
-        doc.setFont("helvetica", "normal")
+        yPosition += 30;
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+
+        // Align amounts with the total amount column
+        const amountX = colPositions[5] + colWidths[5] / 2;
 
         if (tax) {
-          doc.text(`Tax: ₹${tax.toFixed(2)}`, pageWidth - margin, yPosition, { align: "right" })
-          yPosition += 12
+          doc.text(`Tax:`, colPositions[4] + colWidths[4] / 2, yPosition, { align: "center" });
+          doc.text(`Rs.${tax.toFixed(2)}`, amountX, yPosition, { align: "center" });
+          yPosition += 12;
         }
         if (pf) {
-          doc.text(`Packaging & Forwarding: ₹${pf.toFixed(2)}`, pageWidth - margin, yPosition, { align: "right" })
-          yPosition += 12
+          doc.text(`P&F:`, colPositions[4] + colWidths[4] / 2, yPosition, { align: "center" });
+          doc.text(`Rs.${pf.toFixed(2)}`, amountX, yPosition, { align: "center" });
+          yPosition += 12;
         }
         if (minus) {
-          doc.text(`Deduction: ₹${minus.toFixed(2)}`, pageWidth - margin, yPosition, { align: "right" })
-          yPosition += 12
+          doc.text(`Deduction:`, colPositions[4] + colWidths[4] / 2, yPosition, { align: "center" });
+          doc.text(`Rs.${minus.toFixed(2)}`, amountX, yPosition, { align: "center" });
+          yPosition += 12;
         }
       }
 
-      // Total row - WITH proper table structure
-      yPosition += 5
-      const totalAmount = payments.reduce((sum, p) => sum + Number.parseFloat(p.amount_paid || "0"), 0)
+      // Total row
+      const totalAmount = payments.reduce((sum, p) => sum + Number.parseFloat(p.amount_paid || "0"), 0);
 
-      doc.setFont("helvetica", "bold")
-      doc.setFontSize(9)
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9);
+      doc.text("TOTAL", colPositions[4] + colWidths[4] / 2, yPosition + 10, { align: "center" });
+      doc.text(`Rs.${totalAmount.toFixed(2)}`, colPositions[5] + colWidths[5] / 2, yPosition + 10, { align: "center" });
 
-      // Total label - positioned in the Date column
-      doc.text("TOTAL", colPositions[3] + colWidths[3] / 2, yPosition + 10, { align: "center" })
-
-      // Total amount - positioned properly in the Amount column
-      doc.text(`Rs.${totalAmount.toFixed(2)}`, colPositions[4] + colWidths[4] / 2, yPosition + 10, { align: "center" })
-
-      yPosition += 20
+      yPosition += 20;
 
       // Footer
-      yPosition += 40
-      doc.setFont("helvetica", "normal")
-      doc.setFontSize(8)
-      doc.text("Thank you for your business!", pageWidth / 2, yPosition, { align: "center" })
+      yPosition += 40;
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.text("Thank you for your business!", pageWidth / 2, yPosition, { align: "center" });
 
       // Download PDF
-      doc.save(`receipt-${safeName}-${receiptId}.pdf`)
+      doc.save(`receipt-${safeName}-${receiptId}.pdf`);
     } catch (error) {
-      console.error("Failed to generate PDF:", error)
-      setReceiptError("Unable to generate receipt PDF. Please try again or contact support.")
+      console.error("Failed to generate PDF:", error);
+      setReceiptError("Unable to generate receipt PDF. Please try again or contact support.");
     }
-  }
+  };
 
   const paginated = filtered.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
   const pageCount = Math.ceil(filtered.length / PAGE_SIZE);
+
+  const filteredTransactions = selectedTransactionType === "cash"
+    ? payments.filter((tx) => tx.payment_method === "cash")
+    : payments.filter((tx) => tx.bank_name === selectedTransactionType);
 
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
       <Sidebar />
       <Logout />
-      <div className="flex-1 p-10 ml-60">
+      <div className="flex-1 p-10 hundred:ml-60 mobile:ml-0">
         <h1 className="text-3xl font-bold text-center text-gray-900 dark:text-white mb-6">
           📒 Ledger Overview
         </h1>
@@ -369,15 +441,15 @@ export default function Ledger() {
               <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">
                 #{booking.order_id}
               </h2>
-              <p className="text-gray-600 dark:text-gray-300">Customer: {booking.customer_name}</p>
-              <p className="text-gray-600 dark:text-gray-300">Phone: {booking.mobile_number}</p>
+              <p className="text-gray-600 dark:text-gray-300">Customer: {booking.customer_name || "N/A"}</p>
+              <p className="text-gray-600 dark:text-gray-300">Phone: {booking.mobile_number || "N/A"}</p>
               <p className="mt-2">
-                <span className={getStatusBadge(booking.status)}>{booking.status}</span>
+                <span className={getStatusBadge(booking.status)}>{booking.status || "N/A"}</span>
               </p>
               <p className="text-gray-600 dark:text-gray-300">
-                <span className="font-semibold">Admin:</span> {booking.admin_username || "N/A"}
+                <strong>Admin:</strong> {booking.admin_username || "N/A"}
               </p>
-              <p className="mt-1 text-gray-600 dark:text-gray-300">Total: ₹{booking.total}</p>
+              <p className="mt-1 text-gray-600 dark:text-gray-300">Total: ₹{booking.total || 0}</p>
               <button
                 onClick={() => openModal(booking)}
                 className="mt-4 w-full flex justify-center items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-2 rounded-lg hover:brightness-110"
@@ -407,7 +479,7 @@ export default function Ledger() {
           </div>
         )}
 
-        {/* Modal */}
+        {/* Main Modal */}
         <Modal
           isOpen={modalIsOpen}
           onRequestClose={closeModal}
@@ -418,14 +490,15 @@ export default function Ledger() {
             const parsedProducts = Array.isArray(selectedBooking.products)
               ? selectedBooking.products
               : JSON.parse(selectedBooking.products || "[]");
+            const extraCharges = parseExtraCharges(selectedBooking.extra_charges);
             const totalQty = parsedProducts.reduce((sum, p) => sum + Number(p.quantity || 0), 0);
             const totalOrderValue = Number(selectedBooking.total || 0);
             const dispatchedQty = dispatchLogs.reduce((sum, log) => sum + Number(log.dispatched_qty || 0), 0);
-            const extraCharges = selectedBooking.extra_charges || {};
-            const extraTotal = (parseFloat(extraCharges.tax || 0) + parseFloat(extraCharges.pf || 0) + parseFloat(extraCharges.minus || 0));
             const debit = calculateDebit(dispatchLogs, parsedProducts, extraCharges);
             const credit = payments.reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
             const netBalance = credit - debit;
+            const subtotal = calculateSubtotal(parsedProducts);
+            const grandTotal = subtotal + extraCharges.pf + extraCharges.tax - extraCharges.minus;
 
             const tableData = [
               ...dispatchLogs.map((log, index) => {
@@ -436,8 +509,8 @@ export default function Ledger() {
                 const amount = effectivePrice * (log.dispatched_qty || 0);
                 return {
                   slNo: index + 1,
-                  productName: log.product_name,
-                  quantity: log.dispatched_qty,
+                  productName: log.product_name || "N/A",
+                  quantity: log.dispatched_qty || 0,
                   ratePerBox: effectivePrice.toFixed(2),
                   debit: amount.toFixed(2),
                   credit: "",
@@ -450,8 +523,8 @@ export default function Ledger() {
                 quantity: "",
                 ratePerBox: "",
                 debit: "",
-                credit: Number(payment.amount_paid).toFixed(2),
-                date: new Date(payment.created_at).getTime(),
+                credit: Number(payment.amount_paid || 0).toFixed(2),
+                date: new Date(payment.transaction_date || payment.created_at).getTime(),
               })),
             ].sort((a, b) => a.date - b.date);
 
@@ -484,27 +557,27 @@ export default function Ledger() {
                 )}
                 <div className="grid md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
                   <div>
-                    <strong>Customer:</strong> {selectedBooking.customer_name}
+                    <strong>Customer:</strong> {selectedBooking.customer_name || "N/A"}
                   </div>
                   <div>
-                    <strong>Phone:</strong> {selectedBooking.mobile_number}
+                    <strong>Phone:</strong> {selectedBooking.mobile_number || "N/A"}
                   </div>
                   <div>
-                    <strong>Email:</strong> {selectedBooking.email}
+                    <strong>Email:</strong> {selectedBooking.email || "N/A"}
                   </div>
                   <div>
-                    <strong>Order Date:</strong> {formatDate(selectedBooking.created_at)}
+                    <strong>Order Date:</strong> {formatDate(selectedBooking.created_at || new Date())}
                   </div>
                   <div className="md:col-span-2">
-                    <strong>Address:</strong> {selectedBooking.address}, {selectedBooking.district},{" "}
-                    {selectedBooking.state}
+                    <strong>Address:</strong> {selectedBooking.address || "N/A"}, {selectedBooking.district || "N/A"},{" "}
+                    {selectedBooking.state || "N/A"}
                   </div>
                   <div>
                     <strong>Amount Paid:</strong> ₹{credit.toFixed(2)}
                   </div>
                   <div>
                     <strong>Status:</strong>{" "}
-                    <span className={getStatusBadge(selectedBooking.status)}>{selectedBooking.status}</span>
+                    <span className={getStatusBadge(selectedBooking.status)}>{selectedBooking.status || "N/A"}</span>
                   </div>
                 </div>
                 <div className="bg-gray-100 dark:bg-gray-800 p-4 rounded-xl shadow-sm border dark:border-gray-700 mb-6">
@@ -545,12 +618,12 @@ export default function Ledger() {
                         key={idx}
                         className="bg-gray-50 dark:bg-gray-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700"
                       >
-                        <div className="font-semibold">{prod.productname}</div>
+                        <div className="font-semibold">{prod.productname || "N/A"}</div>
                         <div className="text-sm">
-                          Qty: {prod.quantity} {prod.per}
+                          Qty: {prod.quantity || 0} {prod.per || ""}
                         </div>
                         <div className="text-sm">
-                          Price: ₹{prod.price} | Discount: {prod.discount || 0}%
+                          Price: ₹{prod.price || 0} | Discount: {prod.discount || 0}%
                         </div>
                         <div className="text-sm">Dispatched: {prod.dispatched || 0}</div>
                       </div>
@@ -567,13 +640,13 @@ export default function Ledger() {
                           className="bg-green-50 dark:bg-green-900 p-4 rounded-lg border border-green-200 dark:border-green-800"
                         >
                           <div className="text-sm">
-                            <strong>Product:</strong> {log.product_name}
+                            <strong>Product:</strong> {log.product_name || "N/A"}
                           </div>
                           <div className="text-sm">
-                            <strong>Dispatched Qty:</strong> {log.dispatched_qty}
+                            <strong>Dispatched Qty:</strong> {log.dispatched_qty || 0}
                           </div>
                           <div className="text-sm">
-                            <strong>Date & Time:</strong> {formatDate(log.dispatched_at)}
+                            <strong>Date & Time:</strong> {formatDate(log.dispatched_at || new Date())}
                           </div>
                           <div className="text-sm">
                             <strong>Transport:</strong> {log.transport_type || "N/A"} - {log.transport_name || "N/A"}
@@ -589,7 +662,6 @@ export default function Ledger() {
                   )}
                 </div>
                 <div>
-                  <h3 className="font-semibold text-lg mb-2">💳 Payments</h3>
                   {payments.length > 0 ? (
                     <>
                       <div className="font-medium text-gray-700 dark:text-gray-200 mb-2">
@@ -602,19 +674,19 @@ export default function Ledger() {
                             className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg border border-blue-200 dark:border-blue-700"
                           >
                             <div className="text-sm">
-                              <strong>Amount:</strong> ₹{payment.amount_paid}
+                              <strong>Amount:</strong> ₹{payment.amount_paid || 0}
                             </div>
                             <div className="text-sm">
                               <strong>Method:</strong> {payment.payment_method || "N/A"}
                             </div>
                             <div className="text-sm">
-                              <strong>Date:</strong> {formatDate(payment.created_at)}
+                              <strong>Bank Name:</strong> {payment.bank_name || "N/A"}
+                            </div>
+                            <div className="text-sm">
+                              <strong>Date:</strong> {formatDate(payment.transaction_date || payment.created_at)}
                             </div>
                             <div className="text-sm">
                               <strong>Admin:</strong> {payment.admin_username || "N/A"}
-                            </div>
-                            <div className="text-sm">
-                              <strong>Note:</strong> {payment.note || "-"}
                             </div>
                           </div>
                         ))}
@@ -658,20 +730,20 @@ export default function Ledger() {
                 )}
                 <div className="grid md:grid-cols-2 gap-x-8 gap-y-3 text-sm">
                   <div>
-                    <strong>Customer:</strong> {selectedBooking.customer_name}
+                    <strong>Customer:</strong> {selectedBooking.customer_name || "N/A"}
                   </div>
                   <div>
-                    <strong>Phone:</strong> {selectedBooking.mobile_number}
+                    <strong>Phone:</strong> {selectedBooking.mobile_number || "N/A"}
                   </div>
                   <div>
-                    <strong>Email:</strong> {selectedBooking.email}
+                    <strong>Email:</strong> {selectedBooking.email || "N/A"}
                   </div>
                   <div>
-                    <strong>Order Date:</strong> {formatDate(selectedBooking.created_at)}
+                    <strong>Order Date:</strong> {formatDate(selectedBooking.created_at || new Date())}
                   </div>
                   <div className="md:col-span-2">
-                    <strong>Address:</strong> {selectedBooking.address}, {selectedBooking.district},{" "}
-                    {selectedBooking.state}
+                    <strong>Address:</strong> {selectedBooking.address || "N/A"}, {selectedBooking.district || "N/A"},{" "}
+                    {selectedBooking.state || "N/A"}
                   </div>
                 </div>
                 <div className="mt-4">
@@ -706,18 +778,42 @@ export default function Ledger() {
                           </td>
                         </tr>
                       ))}
-                      {extraTotal > 0 && (
-                        <tr className="font-semibold">
-                          <td className="border border-gray-300 dark:border-gray-600 p-2"></td>
-                          <td className="border border-gray-300 dark:border-gray-600 p-2">Extra Charges</td>
-                          <td className="border border-gray-300 dark:border-gray-600 p-2 text-right"></td>
-                          <td className="border border-gray-300 dark:border-gray-600 p-2 text-right"></td>
-                          <td className="border border-gray-300 dark:border-gray-600 p-2 text-right"></td>
-                          <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-red-600">
-                            ₹{extraTotal.toFixed(2)}
-                          </td>
-                          <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-green-600"></td>
-                        </tr>
+                      {extraCharges && (
+                        <>
+                          {extraCharges.pf > 0 && (
+                            <tr className="font-semibold">
+                              <td className="border border-gray-300 dark:border-gray-600 p-2"></td>
+                              <td className="border border-gray-300 dark:border-gray-600 p-2">PF Charges</td>
+                              <td colSpan={3} className="border border-gray-300 dark:border-gray-600 p-2"></td>
+                              <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-red-600">
+                                ₹{extraCharges.pf.toFixed(2)}
+                              </td>
+                              <td className="border border-gray-300 dark:border-gray-600 p-2"></td>
+                            </tr>
+                          )}
+                          {extraCharges.tax > 0 && (
+                            <tr className="font-semibold">
+                              <td className="border border-gray-300 dark:border-gray-600 p-2"></td>
+                              <td className="border border-gray-300 dark:border-gray-600 p-2">Tax</td>
+                              <td colSpan={3} className="border border-gray-300 dark:border-gray-600 p-2"></td>
+                              <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-red-600">
+                                ₹{extraCharges.tax.toFixed(2)}
+                              </td>
+                              <td className="border border-gray-300 dark:border-gray-600 p-2"></td>
+                            </tr>
+                          )}
+                          {extraCharges.minus > 0 && (
+                            <tr className="font-semibold">
+                              <td className="border border-gray-300 dark:border-gray-600 p-2"></td>
+                              <td className="border border-gray-300 dark:border-gray-600 p-2">Discount (Minus)</td>
+                              <td colSpan={3} className="border border-gray-300 dark:border-gray-600 p-2"></td>
+                              <td className="border border-gray-300 dark:border-gray-600 p-2 text-right text-red-600">
+                                -₹{extraCharges.minus.toFixed(2)}
+                              </td>
+                              <td className="border border-gray-300 dark:border-gray-600 p-2"></td>
+                            </tr>
+                          )}
+                        </>
                       )}
                       <tr className="font-semibold">
                         <td className="border border-gray-300 dark:border-gray-600 p-2" colSpan={2}>
@@ -749,16 +845,76 @@ export default function Ledger() {
                     </tbody>
                   </table>
                 </div>
-                <div className="mt-4">
-                  <p className="text-sm">
-                    <strong>Status:</strong>{" "}
-                    <span className={getStatusBadge(selectedBooking.status)}>{selectedBooking.status}</span>
-                  </p>
-                </div>
               </div>
             );
           })()}
         </Modal>
+
+        {/* Transaction Modal */}
+        {isTransactionModalOpen && (
+          <Modal
+            isOpen={isTransactionModalOpen}
+            onRequestClose={closeTransactionModal}
+            className="max-w-4xl w-full max-h-[90vh] overflow-y-auto mx-auto bg-white dark:bg-gray-900 p-8 rounded-2xl shadow-2xl mt-10 z-[9999] outline-none"
+            overlayClassName="fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-start pt-10 z-[9998]"
+          >
+            <div className="space-y-6 text-gray-800 dark:text-gray-200">
+              <div className="flex justify-between items-center border-b pb-4">
+                <h2 className="text-2xl font-bold">
+                  {selectedTransactionType === "cash"
+                    ? "Cash Transactions"
+                    : `${selectedTransactionType} Transactions`} for Order #{selectedBooking.order_id}
+                </h2>
+                <button onClick={closeTransactionModal} className="text-gray-400 hover:text-red-500 transition">
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              {filteredTransactions.length === 0 ? (
+                <div className="text-center text-gray-600 dark:text-gray-300">
+                  No {selectedTransactionType === "cash" ? "cash" : "bank"} transactions found.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full border-collapse text-sm">
+                    <thead>
+                      <tr className="bg-gray-100 dark:bg-gray-800">
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-left">Sl.No</th>
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-left">Customer Name</th>
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-right">Amount Paid (₹)</th>
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-left">Payment Method</th>
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-left">Bank Name</th>
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-left">Date</th>
+                        <th className="border border-gray-300 dark:border-gray-600 p-2 text-left">Admin</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredTransactions.map((tx, index) => (
+                        <tr
+                          key={tx.id || `${tx.transaction_date}_${tx.amount_paid}`}
+                          className="border-b border-gray-300 dark:border-gray-600"
+                        >
+                          <td className="border border-gray-300 dark:border-gray-600 p-2">{index + 1}</td>
+                          <td className="border border-gray-300 dark:border-gray-600 p-2">
+                            {selectedBooking.customer_name || "N/A"}
+                          </td>
+                          <td className="border border-gray-300 dark:border-gray-600 p-2 text-right">
+                            ₹{Number.parseFloat(tx.amount_paid || 0).toFixed(2)}
+                          </td>
+                          <td className="border border-gray-300 dark:border-gray-600 p-2">{tx.payment_method || "N/A"}</td>
+                          <td className="border border-gray-300 dark:border-gray-600 p-2">{tx.bank_name || "N/A"}</td>
+                          <td className="border border-gray-300 dark:border-gray-600 p-2">
+                            {formatDate(tx.transaction_date || tx.created_at)}
+                          </td>
+                          <td className="border border-gray-300 dark:border-gray-600 p-2">{tx.admin_username || "N/A"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </Modal>
+        )}
       </div>
     </div>
   );
