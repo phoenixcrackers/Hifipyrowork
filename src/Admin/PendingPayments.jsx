@@ -109,7 +109,6 @@ export default function PendingPayments() {
 
     try {
       const payload = {
-        status: 'paid',
         payment_method: paymentMethod,
         amount_paid: newAmountPaid,
         admin_id: selectedAdmin,
