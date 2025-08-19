@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaPlus, FaMinus, FaShoppingCart, FaSignOutAlt } from "react-icons/fa";
+import { FaPlus, FaMinus, FaShoppingCart, FaSignOutAlt, FaTimes } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
 import { API_BASE_URL } from "../Config";
 import { API_BASE_URL_loc } from "../Config";
@@ -52,7 +52,11 @@ const Book = () => {
     states: [],
     districts: [],
     customer: { customer_name: "", company_name: "", license_number: "", address: "", district: "", state: "", mobile_number: "", email: "" },
-    isEditing: false
+    isEditing: false,
+    showImageModal: false,
+    selectedImages: [],
+    selectedImageIndex: 0,
+    cardImageIndexes: {}
   });
 
   const styles = {
@@ -112,15 +116,34 @@ const Book = () => {
           fetch(`${API_BASE_URL}/api/auth/user/${encodeURIComponent(username)}`)
         ]);
 
+        if (!prodRes.ok) {
+          const errorData = await prodRes.json();
+          throw new Error(errorData.message || "Failed to fetch products");
+        }
+        if (!statesRes.ok) {
+          const errorData = await statesRes.json();
+          throw new Error(errorData.message || "Failed to fetch states");
+        }
+        if (!userRes.ok) {
+          const errorData = await userRes.json();
+          throw new Error(errorData.message || "Failed to fetch user details");
+        }
+
         const [products, states, user] = await Promise.all([prodRes.json(), statesRes.json(), userRes.json()]);
 
-        if (!prodRes.ok) throw new Error(products.message || "Failed to fetch products");
-        if (!statesRes.ok) throw new Error(states.message || "Failed to fetch states");
-        if (!userRes.ok) throw new Error(user.message || "Failed to fetch user details");
+        const parsedProducts = products.map(product => ({
+          ...product,
+          image: product.image ? JSON.parse(product.image) : []
+        }));
+
+        const initialImageIndexes = parsedProducts.reduce((acc, p) => ({
+          ...acc,
+          [p.serial_number]: 0
+        }), {});
 
         setState(s => ({
           ...s,
-          products,
+          products: parsedProducts,
           states,
           customer: {
             customer_name: user.username,
@@ -131,7 +154,8 @@ const Book = () => {
             state: user.state,
             mobile_number: user.mobile_number,
             email: user.email || ""
-          }
+          },
+          cardImageIndexes: initialImageIndexes
         }));
       } catch (err) {
         setState(s => ({ ...s, error: err.message || "Failed to fetch data", showError: true }));
@@ -148,7 +172,10 @@ const Book = () => {
   useEffect(() => {
     if (state.customer.state) {
       fetch(`${API_BASE_URL_loc}/api/locations/states/${encodeURIComponent(state.customer.state)}/districts`)
-        .then(res => res.json())
+        .then(res => {
+          if (!res.ok) throw new Error("Failed to fetch districts");
+          return res.json();
+        })
         .then(districts => setState(s => ({ ...s, districts })))
         .catch(err => {
           setState(s => ({ ...s, error: err.message || "Failed to fetch districts", showError: true }));
@@ -195,7 +222,14 @@ const Book = () => {
     }
     const bookingProducts = Object.entries(state.cart).map(([serial, qty]) => {
       const p = state.products.find(p => p.serial_number === serial);
-      return { id: p.id, product_type: 'gift_box_dealers', productname: p.productname, quantity: qty, price: parseFloat(p.price), discount: parseFloat(p.discount || 0) };
+      return { 
+        id: p.id, 
+        product_type: 'gift_box_products',
+        productname: p.productname, 
+        quantity: qty, 
+        price: parseFloat(p.price), 
+        discount: parseFloat(p.discount || 0) 
+      };
     });
     try {
       const res = await fetch(`${API_BASE_URL}/api/dbooking`, {
@@ -206,8 +240,19 @@ const Book = () => {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to create booking");
       const prodRes = await fetch(`${API_BASE_URL}/api/gift-box-products`);
+      if (!prodRes.ok) {
+        const errorData = await prodRes.json();
+        throw new Error(errorData.message || "Failed to refresh products");
+      }
       const products = await prodRes.json();
-      if (!prodRes.ok) throw new Error("Failed to refresh products");
+      const parsedProducts = products.map(product => ({
+        ...product,
+        image: product.image ? JSON.parse(product.image) : []
+      }));
+      const updatedImageIndexes = parsedProducts.reduce((acc, p) => ({
+        ...acc,
+        [p.serial_number]: 0
+      }), {});
       setState(s => ({
         ...s,
         showSuccess: true,
@@ -215,7 +260,8 @@ const Book = () => {
         isCartOpen: false,
         showForm: false,
         invoiceUrl: `${API_BASE_URL}/api/dbooking/invoice/${data.order_id}`,
-        products,
+        products: parsedProducts,
+        cardImageIndexes: updatedImageIndexes,
         customer: { ...s.customer },
         isEditing: false
       }));
@@ -269,6 +315,48 @@ const Book = () => {
 
   const handleInputChange = (key, value) => setState(s => ({ ...s, customer: { ...s.customer, [key]: value, ...(key === "state" ? { district: "" } : {}) } }));
 
+  const openImageModal = (images, index = 0) => {
+    setState(s => ({ ...s, showImageModal: true, selectedImages: images, selectedImageIndex: index }));
+  };
+
+  const closeImageModal = () => {
+    setState(s => ({ ...s, showImageModal: false, selectedImages: [], selectedImageIndex: 0 }));
+  };
+
+  const nextImage = () => {
+    setState(s => ({
+      ...s,
+      selectedImageIndex: (s.selectedImageIndex + 1) % s.selectedImages.length
+    }));
+  };
+
+  const prevImage = () => {
+    setState(s => ({
+      ...s,
+      selectedImageIndex: (s.selectedImageIndex - 1 + s.selectedImages.length) % s.selectedImages.length
+    }));
+  };
+
+  const nextCardImage = (serial_number, images) => {
+    setState(s => ({
+      ...s,
+      cardImageIndexes: {
+        ...s.cardImageIndexes,
+        [serial_number]: (s.cardImageIndexes[serial_number] + 1) % images.length
+      }
+    }));
+  };
+
+  const prevCardImage = (serial_number, images) => {
+    setState(s => ({
+      ...s,
+      cardImageIndexes: {
+        ...s.cardImageIndexes,
+        [serial_number]: (s.cardImageIndexes[serial_number] - 1 + images.length) % images.length
+      }
+    }));
+  };
+
   const totals = useMemo(() => {
     let net = 0, save = 0, total = 0;
     for (const serial in state.cart) {
@@ -282,7 +370,11 @@ const Book = () => {
     return { net: formatPrice(net), save: formatPrice(save), total: formatPrice(total) };
   }, [state.cart, state.products]);
 
-  const filteredProducts = useMemo(() => state.products.filter(p => !state.search || p.productname.toLowerCase().includes(state.search.toLowerCase()) || p.serial_number.toLowerCase().includes(state.search.toLowerCase())), [state.products, state.search]);
+  const filteredProducts = useMemo(() => state.products.filter(p => 
+    !state.search || 
+    p.productname.toLowerCase().includes(state.search.toLowerCase()) || 
+    p.serial_number.toLowerCase().includes(state.search.toLowerCase())
+  ), [state.products, state.search]);
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -298,7 +390,9 @@ const Book = () => {
       >
         <FaSignOutAlt />
       </motion.button>
-      {(state.isCartOpen || state.showForm) && <div className="fixed inset-0 bg-black/40 dark:bg-black/60 z-30" onClick={() => setState(s => ({ ...s, isCartOpen: false, showForm: false, isEditing: false }))} />}
+      {(state.isCartOpen || state.showForm || state.showImageModal) && (
+        <div className="fixed inset-0 bg-black/40 dark:bg-black/60 z-30" onClick={() => setState(s => ({ ...s, isCartOpen: false, showForm: false, showImageModal: false, isEditing: false }))} />
+      )}
       {state.showSuccess && (
         <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.5 }}>
           <BigFireworkAnimation />
@@ -309,7 +403,78 @@ const Book = () => {
           </motion.div>
         </motion.div>
       )}
-      {state.showError && <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ duration: 0.5 }}><div className="bg-red-500 dark:bg-red-600 text-white dark:text-gray-100 text-lg font-semibold rounded-xl py-6 px-4 max-w-md mx-auto text-center shadow-lg">{state.error}</div></motion.div>}
+      {state.showError && (
+        <motion.div className="fixed inset-0 flex items-center justify-center z-60 pointer-events-none" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ duration: 0.5 }}>
+          <div className="bg-red-500 dark:bg-red-600 text-white dark:text-gray-100 text-lg font-semibold rounded-xl py-6 px-4 max-w-md mx-auto text-center shadow-lg">{state.error}</div>
+        </motion.div>
+      )}
+      {state.showImageModal && (
+        <motion.div 
+          initial={{ opacity: 0, scale: 0.8 }} 
+          animate={{ opacity: 1, scale: 1 }} 
+          exit={{ opacity: 0, scale: 0.8 }} 
+          transition={{ duration: 0.3 }} 
+          className="fixed inset-0 flex items-center justify-center z-50"
+        >
+          <div 
+            className="relative w-full max-w-3xl mx-4 p-6 rounded-xl bg-white dark:bg-gray-800"
+            style={{ 
+              background: styles.modal.background, 
+              backgroundDark: styles.modal.backgroundDark, 
+              border: styles.modal.border, 
+              borderDark: styles.modal.borderDark, 
+              boxShadow: styles.modal.boxShadow, 
+              boxShadowDark: styles.modal.boxShadowDark 
+            }}
+          >
+            <button 
+              onClick={closeImageModal} 
+              className="absolute top-2 right-2 text-gray-600 dark:text-gray-400 hover:text-red-500 dark:hover:text-red-400 text-xl cursor-pointer"
+            >
+              <FaTimes />
+            </button>
+            <div className="relative flex items-center justify-center">
+              {state.selectedImages.length > 0 ? (
+                <>
+                  <img 
+                    src={state.selectedImages[state.selectedImageIndex]} 
+                    alt={`Full-size ${state.products.find(p => p.image.includes(state.selectedImages[state.selectedImageIndex]))?.productname || 'product'}`} 
+                    className="max-w-full max-h-[70vh] object-contain rounded-xl"
+                  />
+                  {state.selectedImages.length > 1 && (
+                    <>
+                      <button 
+                        onClick={prevImage} 
+                        className="absolute left-2 top-1/2 transform -translate-y-1/2 text-white dark:text-gray-100 rounded-full w-10 h-10 flex items-center justify-center" 
+                        style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark }}
+                      >
+                        &larr;
+                      </button>
+                      <button 
+                        onClick={nextImage} 
+                        className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white dark:text-gray-100 rounded-full w-10 h-10 flex items-center justify-center" 
+                        style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark }}
+                      >
+                        &rarr;
+                      </button>
+                      <div className="absolute bottom-2 flex gap-2">
+                        {state.selectedImages.map((_, index) => (
+                          <div 
+                            key={index} 
+                            className={`w-3 h-3 rounded-full ${index === state.selectedImageIndex ? 'bg-sky-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                          />
+                        ))}
+                      </div>
+                    </>
+                  )}
+                </>
+              ) : (
+                <p className="text-gray-500 dark:text-gray-400">No images available</p>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
       <main className="relative pt-5 mobile:px-5 mobile:pt-20 max-w-7xl mx-auto">
         <section className="rounded-xl px-4 py-3 shadow-inner flex justify-between flex-wrap gap-4 text-sm sm:text-base border border-sky-300 dark:border-sky-600 bg-gradient-to-br from-sky-400/80 to-sky-600/90 dark:from-sky-600/80 dark:to-sky-800/90 text-white dark:text-gray-100 font-semibold">
           <div>Net: ₹{totals.net}</div><div>Save: ₹{totals.save}</div><div className="font-bold">Total: ₹{totals.total}</div>
@@ -326,7 +491,7 @@ const Book = () => {
         </div>
         <div className="mt-12 mb-10">
           <div className="flex justify-between items-center mb-5">
-            <h2 className="text-3xl text-sky-500 dark:text-sky-300 font-semibold capitalize border-b-4 border-sky-500 dark:border-sky-300 pb-2">Gift Box Dealers</h2>
+            <h2 className="text-3xl text-sky-500 dark:text-sky-300 font-semibold capitalize border-b-4 border-sky-500 dark:border-sky-300 pb-2">Gift Box Products</h2>
             <button
               onClick={() => setState(s => ({ ...s, showForm: true, isEditing: true }))}
               className="text-sm text-white dark:text-gray-100 font-semibold py-2 px-4 rounded-xl"
@@ -341,6 +506,8 @@ const Book = () => {
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
               {filteredProducts.map(p => {
                 const price = parseFloat(p.price), disc = price * (p.discount / 100), finalPrice = p.discount > 0 ? formatPrice(price - disc) : formatPrice(price), count = state.cart[p.serial_number] || 0;
+                const currentImageIndex = state.cardImageIndexes[p.serial_number] || 0;
+                const primaryImage = Array.isArray(p.image) && p.image.length > 0 ? p.image[currentImageIndex] : "/placeholder.svg";
                 return (
                   <motion.div 
                     key={p.serial_number} 
@@ -371,9 +538,39 @@ const Book = () => {
                           <p className="text-xl sm:text-lg font-bold text-sky-500 dark:text-sky-300 group-hover:text-sky-700 dark:group-hover:text-sky-400">₹{finalPrice} / {p.per}</p>
                         )}
                       </div>
-                      {p.image && (
-                        <div className="w-full h-30 rounded-2xl mb-4 overflow-hidden" style={{ background: styles.card.background, backgroundDark: styles.card.backgroundDark, backdropFilter: styles.card.backdropFilter, border: styles.card.border, borderDark: styles.card.borderDark }}>
-                          <img src={p.image || "/placeholder.svg"} alt={p.productname} className="w-full h-full object-contain p-2" />
+                      {primaryImage && (
+                        <div 
+                          className="relative w-full h-30 rounded-2xl mb-4 overflow-hidden cursor-pointer" 
+                          style={{ background: styles.card.background, backgroundDark: styles.card.backgroundDark, backdropFilter: styles.card.backdropFilter, border: styles.card.border, borderDark: styles.card.borderDark }}
+                          onClick={() => openImageModal(p.image, currentImageIndex)}
+                        >
+                          <img src={primaryImage} alt={`${p.productname} - Image ${currentImageIndex + 1}`} className="w-full h-full object-contain p-2" />
+                          {Array.isArray(p.image) && p.image.length > 1 && (
+                            <>
+                              <button 
+                                onClick={e => { e.stopPropagation(); prevCardImage(p.serial_number, p.image); }} 
+                                className="absolute left-2 top-1/2 transform -translate-y-1/2 text-white dark:text-gray-100 rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" 
+                                style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark }}
+                              >
+                                &larr;
+                              </button>
+                              <button 
+                                onClick={e => { e.stopPropagation(); nextCardImage(p.serial_number, p.image); }} 
+                                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-white dark:text-gray-100 rounded-full w-8 h-8 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" 
+                                style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark }}
+                              >
+                                &rarr;
+                              </button>
+                              <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                {p.image.map((_, index) => (
+                                  <div 
+                                    key={index} 
+                                    className={`w-2 h-2 rounded-full ${index === currentImageIndex ? 'bg-sky-500' : 'bg-gray-300 dark:bg-gray-600'}`}
+                                  />
+                                ))}
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
                       <div className="relative min-h-[3rem] flex items-end justify-end">
@@ -424,7 +621,7 @@ const Book = () => {
         onClick={() => setState(s => ({ ...s, isCartOpen: true }))} 
         whileHover={{ scale: 1.1 }} 
         whileTap={{ scale: 0.95 }} 
-        className={`fixed bottom-6 right-6 z-50 text-white dark:text-gray-100 rounded-full shadow-xl w-16 h-16 flex items-center justify-center text-2xl ${state.isCartOpen || state.showForm ? "hidden" : ""}`}
+        className={`fixed bottom-6 right-6 z-50 text-white dark:text-gray-100 rounded-full shadow-xl w-16 h-16 flex items-center justify-center text-2xl ${state.isCartOpen || state.showForm || state.showImageModal ? "hidden" : ""}`}
         style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark, border: styles.button.border, borderDark: styles.button.borderDark, boxShadow: styles.button.boxShadow, boxShadowDark: styles.button.boxShadowDark }}
       >
         <FaShoppingCart />
@@ -449,11 +646,35 @@ const Book = () => {
               const p = state.products.find(p => p.serial_number === serial);
               if (!p) return null;
               const disc = (p.price * p.discount) / 100, priceAfterDisc = formatPrice(p.price - disc);
+              const currentImageIndex = state.cardImageIndexes[p.serial_number] || 0;
+              const primaryImage = Array.isArray(p.image) && p.image.length > 0 ? p.image[currentImageIndex] : "/placeholder.svg";
               return (
                 <motion.div key={serial} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex items-center gap-3 border-b pb-3 border-sky-100 dark:border-gray-700">
-                  {p.image && (
-                    <div className="w-16 h-16 rounded-xl overflow-hidden" style={{ background: styles.card.background, backgroundDark: styles.card.backgroundDark, backdropFilter: styles.card.backdropFilter, border: styles.card.border, borderDark: styles.card.borderDark }}>
-                      <img src={p.image || "/placeholder.svg"} alt={p.productname} className="w-full h-full object-contain p-1" />
+                  {primaryImage && (
+                    <div 
+                      className="relative w-16 h-16 rounded-xl overflow-hidden cursor-pointer" 
+                      style={{ background: styles.card.background, backgroundDark: styles.card.backgroundDark, backdropFilter: styles.card.backdropFilter, border: styles.card.border, borderDark: styles.card.borderDark }}
+                      onClick={() => openImageModal(p.image, currentImageIndex)}
+                    >
+                      <img src={primaryImage} alt={`${p.productname} - Image ${currentImageIndex + 1}`} className="w-full h-full object-contain p-1" />
+                      {Array.isArray(p.image) && p.image.length > 1 && (
+                        <>
+                          <button 
+                            onClick={e => { e.stopPropagation(); prevCardImage(p.serial_number, p.image); }} 
+                            className="absolute left-1 top-1/2 transform -translate-y-1/2 text-white dark:text-gray-100 rounded-full w-6 h-6 flex items-center justify-center" 
+                            style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark }}
+                          >
+                            &larr;
+                          </button>
+                          <button 
+                            onClick={e => { e.stopPropagation(); nextCardImage(p.serial_number, p.image); }} 
+                            className="absolute right-1 top-1/2 transform -translate-y-1/2 text-white dark:text-gray-100 rounded-full w-6 h-6 flex items-center justify-center" 
+                            style={{ background: styles.button.background, backgroundDark: styles.button.backgroundDark }}
+                          >
+                            &rarr;
+                          </button>
+                        </>
+                      )}
                     </div>
                   )}
                   <div className="flex-1">
@@ -479,27 +700,27 @@ const Book = () => {
         </div>
       </motion.aside>
       {state.showForm && (
-        <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ duration: 0.3 }} className="fixed inset-0 flex items-center justify-center z-50 ">
-          <div className="w-full max-w-xl mx-4 p-6 rounded-xl  bg-white dark:bg-gray-800" style={{ background: styles.modal.background, backgroundDark: styles.modal.backgroundDark, border: styles.modal.border, borderDark: styles.modal.borderDark, boxShadow: styles.modal.boxShadow, boxShadowDark: styles.modal.boxShadowDark }}>
-            <h2 className="text-lg font-bold text-sky-800 dark:text-sky-800 mb-4">{state.isEditing ? 'Edit Profile' : 'Customer Details'}</h2>
-            <div className="space-y-4 hundred:gap-x-5 hundred:grid hundred:grid-cols-2">
+        <motion.div initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.8 }} transition={{ duration: 0.3 }} className="fixed inset-0 flex items-center justify-center z-50">
+          <div className="w-full max-w-xl mx-4 p-6 rounded-xl bg-white dark:bg-gray-800" style={{ background: styles.modal.background, backgroundDark: styles.modal.backgroundDark, border: styles.modal.border, borderDark: styles.modal.borderDark, boxShadow: styles.modal.boxShadow, boxShadowDark: styles.modal.boxShadowDark }}>
+            <h2 className="text-lg font-bold text-sky-800 dark:text-sky-200 mb-4">{state.isEditing ? 'Edit Profile' : 'Customer Details'}</h2>
+            <form className="space-y-4 hundred:gap-x-5 hundred:grid hundred:grid-cols-2">
               {[
-                { label: "Customer Name", key: "customer_name", type: "text", placeholder: "Enter name", required: true, },
-                { label: "Company Name", key: "company_name", type: "text", placeholder: "Enter company name", required: true, },
-                { label: "License Number", key: "license_number", type: "text", placeholder: "Enter license number (optional)", },
-                { label: "Address", key: "address", type: "textarea", placeholder: "Enter address", required: true,},
-                { label: "State", key: "state", type: "select", options: state.states, required: true, },
-                { label: "District", key: "district", type: "select", options: state.districts, required: true,},
-                { label: "Mobile Number", key: "customer_name", type: "text", placeholder: "Enter mobile number", required: true, },
-                { label: "Email", key: "email", type: "email", placeholder: "Enter email", required: true,  }
+                { label: "Customer Name", key: "customer_name", type: "text", placeholder: "Enter name", required: true },
+                { label: "Company Name", key: "company_name", type: "text", placeholder: "Enter company name", required: true },
+                { label: "License Number", key: "license_number", type: "text", placeholder: "Enter license number (optional)" },
+                { label: "Address", key: "address", type: "textarea", placeholder: "Enter address", required: true },
+                { label: "State", key: "state", type: "select", options: state.states, required: true },
+                { label: "District", key: "district", type: "select", options: state.districts, required: true },
+                { label: "Mobile Number", key: "mobile_number", type: "text", placeholder: "Enter mobile number", required: true },
+                { label: "Email", key: "email", type: "email", placeholder: "Enter email", required: true }
               ].map(({ label, key, type, placeholder, required, options }) => (
                 <div key={key}>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-700">{label} {required && '*'}</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-200">{label} {required && '*'}</label>
                   {type === "select" ? (
                     <select 
                       value={state.customer[key]} 
                       onChange={e => handleInputChange(key, e.target.value)} 
-                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
+                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
                       style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark }} 
                       required={required}
                     >
@@ -511,7 +732,7 @@ const Book = () => {
                       value={state.customer[key]} 
                       onChange={e => handleInputChange(key, e.target.value)} 
                       placeholder={placeholder} 
-                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
+                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
                       style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark }} 
                       required={required}
                     />
@@ -521,7 +742,7 @@ const Book = () => {
                       value={state.customer[key]} 
                       onChange={e => handleInputChange(key, e.target.value)} 
                       placeholder={placeholder} 
-                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-700 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
+                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
                       style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark }} 
                       required={required}
                     />
@@ -546,7 +767,7 @@ const Book = () => {
                   {state.isEditing ? 'Update Profile' : 'Confirm Booking'}
                 </button>
               </div>
-            </div>
+            </form>
           </div>
         </motion.div>
       )}

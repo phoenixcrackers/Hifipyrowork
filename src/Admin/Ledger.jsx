@@ -226,10 +226,7 @@ export default function Ledger() {
       doc.text("Anil Kumar Eye Hospital Opp, Sattur Road, Sivakasi", margin, yPosition);
 
       yPosition += 15;
-      doc.text("Mobile: +91 63836 59214", margin, yPosition);
-
-      yPosition += 15;
-      doc.text("Email: nivasramasamy27@gmail.com", margin, yPosition);
+      doc.text("Mobile: +91 97865 08621, +91 97868 60010", margin, yPosition);
 
       // Customer Details (Right side)
       let rightYPosition = yPosition - 45;

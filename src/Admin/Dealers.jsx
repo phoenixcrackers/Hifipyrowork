@@ -2,14 +2,13 @@ import React, { useState, useEffect } from 'react';
 import Modal from 'react-modal';
 import Sidebar from './Sidebar/Sidebar';
 import { API_BASE_URL } from '../../Config';
-import { FaEye, FaEdit, FaTrash, FaPlus } from 'react-icons/fa';
+import { FaEye, FaEdit, FaTrash, FaPlus, FaTimes } from 'react-icons/fa';
 import Logout from './Logout';
 
 // Set app element for accessibility
 Modal.setAppElement('#root');
 
-// Define FormFields component outside to prevent redefinition
-const FormFields = ({ isEdit, formData, handleInputChange, handleImageChange, handleSubmit, closeModal, capitalize }) => {
+const FormFields = ({ isEdit, formData, handleInputChange, handleImageChange, handleRemoveImage, handleSubmit, closeModal, capitalize }) => {
   const fields = [
     { name: 'productname', label: 'Product Name', type: 'text', placeholder: 'Enter product name' },
     { name: 'serial_number', label: 'Serial Number', type: 'text', placeholder: 'Enter serial number' },
@@ -52,15 +51,49 @@ const FormFields = ({ isEdit, formData, handleInputChange, handleImageChange, ha
         </select>
       </div>
       <div>
-        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Image</label>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Images</label>
         <input
           type="file"
-          name="image"
+          name="images"
           onChange={handleImageChange}
-          accept="image/jpeg,image/png"
+          accept="image/jpeg,image/png,image/jpg"
+          multiple
           className="mt-1 block w-full text-sm text-gray-900 dark:text-gray-100 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:bg-indigo-50 dark:file:bg-indigo-900 file:text-indigo-600 dark:file:text-indigo-300 hover:file:bg-indigo-100 dark:hover:file:bg-indigo-800"
         />
-        {formData.imageBase64 && <img src={formData.imageBase64} alt="Preview" className="mt-2 h-24 w-24 object-cover rounded-md" />}
+        {/* Display existing images */}
+        {formData.existingImages && formData.existingImages.length > 0 && (
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {formData.existingImages.map((url, index) => (
+              <div key={index} className="relative">
+                <img src={url} alt={`Existing ${index}`} className="h-24 w-24 object-cover rounded-md" />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImage(index, 'existing')}
+                  className="absolute top-0 right-0 bg-red-600 dark:bg-red-500 text-white rounded-full p-1"
+                >
+                  <FaTimes className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+        {/* Display new image previews */}
+        {formData.newImages && formData.newImages.length > 0 && (
+          <div className="mt-2 grid grid-cols-3 gap-2">
+            {formData.newImages.map((file, index) => (
+              <div key={index} className="relative">
+                <img src={URL.createObjectURL(file)} alt={`Preview ${index}`} className="h-24 w-24 object-cover rounded-md" />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveImage(index, 'new')}
+                  className="absolute top-0 right-0 bg-red-600 dark:bg-red-500 text-white rounded-full p-1"
+                >
+                  <FaTimes className="h-3 w-3" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
       <div className="flex justify-end space-x-3">
         <button
@@ -98,7 +131,8 @@ export default function Dealers() {
     discount: '',
     per: '',
     stock: '',
-    imageBase64: '',
+    existingImages: [], // Array of existing Cloudinary URLs
+    newImages: [], // Array of new File objects
   });
   const productType = 'gift_box_dealers';
   const productsPerPage = 10;
@@ -129,12 +163,29 @@ export default function Dealers() {
     e.preventDefault();
     setError('');
     setSuccess('');
+
     try {
+      const formDataToSend = new FormData();
+      formDataToSend.append('productname', formData.productname);
+      formDataToSend.append('serial_number', formData.serial_number);
+      formDataToSend.append('price', formData.price);
+      formDataToSend.append('discount', formData.discount);
+      formDataToSend.append('per', formData.per);
+      formDataToSend.append('stock', formData.stock);
+      if (!isEdit) {
+        formDataToSend.append('product_type', productType);
+      }
+      if (formData.existingImages.length > 0) {
+        formDataToSend.append('existingImages', JSON.stringify(formData.existingImages));
+      }
+      formData.newImages.forEach((file) => {
+        formDataToSend.append('images', file);
+      });
+
       const url = `${API_BASE_URL}/api/gift-box-products${isEdit ? `/${selectedProduct.id}` : ''}`;
       const response = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(isEdit ? formData : { ...formData, product_type: productType }),
+        body: formDataToSend,
       });
       if (!response.ok) throw new Error((await response.json()).message || `Failed to ${isEdit ? 'update' : 'save'} product`);
       setSuccess(`Product ${isEdit ? 'updated' : 'saved'} successfully!`);
@@ -176,21 +227,35 @@ export default function Dealers() {
   };
 
   const handleInputChange = (e) => {
-    e.persist(); // Ensure event is available in async contexts
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      if (!['image/png', 'image/jpeg'].includes(file.type)) return setError('Only PNG or JPEG images are allowed');
-      if (file.size > 1000000) return setError('Image size must be less than 1MB');
-      const reader = new FileReader();
-      reader.onloadend = () => setFormData(prev => ({ ...prev, imageBase64: reader.result }));
-      reader.readAsDataURL(file);
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      const validFiles = files.filter(file => ['image/png', 'image/jpeg', 'image/jpg'].includes(file.type) && file.size <= 1000000);
+      if (validFiles.length !== files.length) {
+        setError('Only PNG/JPEG/JPG images under 1MB are allowed');
+        return;
+      }
+      setFormData(prev => ({ ...prev, newImages: [...prev.newImages, ...validFiles] }));
       setError('');
     }
+  };
+
+  const handleRemoveImage = (index, type) => {
+    setFormData(prev => {
+      if (type === 'existing') {
+        const updatedExisting = [...prev.existingImages];
+        updatedExisting.splice(index, 1);
+        return { ...prev, existingImages: updatedExisting };
+      } else {
+        const updatedNew = [...prev.newImages];
+        updatedNew.splice(index, 1);
+        return { ...prev, newImages: updatedNew };
+      }
+    });
   };
 
   const resetForm = () => {
@@ -201,7 +266,8 @@ export default function Dealers() {
       discount: '',
       per: '',
       stock: '',
-      imageBase64: '',
+      existingImages: [],
+      newImages: [],
     });
   };
 
@@ -217,7 +283,8 @@ export default function Dealers() {
         discount: product.discount || '',
         per: product.per || '',
         stock: product.stock || '',
-        imageBase64: product.image || '',
+        existingImages: product.image ? JSON.parse(product.image) : [],
+        newImages: [],
       });
       setEditModalIsOpen(true);
     } else {
@@ -283,13 +350,18 @@ export default function Dealers() {
             <div className="grid mobile:grid-cols-1 onefifty:grid-cols-3 gap-6">
               {currentProducts.map(product => {
                 const productKey = `${productType}-${product.id}`;
+                const images = product.image ? JSON.parse(product.image) : [];
                 return (
                   <div key={productKey} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 hover:shadow-lg transition flex flex-col">
                     <div className="flex justify-center mb-4">
-                      {product.image ? (
-                        <img src={product.image} alt={product.productname} className="h-24 w-24 object-cover rounded-md" />
+                      {images.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          {images.slice(0, 2).map((url, index) => (
+                            <img key={index} src={url} alt={`${product.productname} ${index}`} className="h-24 w-24 object-cover rounded-md" />
+                          ))}
+                        </div>
                       ) : (
-                        <span className="text-sm text-gray-500 dark:text-gray-400">No image</span>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">No images</span>
                       )}
                     </div>
                     <div className="grid grid-cols-2">
@@ -378,6 +450,7 @@ export default function Dealers() {
                 formData={formData}
                 handleInputChange={handleInputChange}
                 handleImageChange={handleImageChange}
+                handleRemoveImage={handleRemoveImage}
                 handleSubmit={handleSubmit}
                 closeModal={closeModal}
                 capitalize={capitalize}
@@ -398,6 +471,7 @@ export default function Dealers() {
                 formData={formData}
                 handleInputChange={handleInputChange}
                 handleImageChange={handleImageChange}
+                handleRemoveImage={handleRemoveImage}
                 handleSubmit={handleSubmit}
                 closeModal={closeModal}
                 capitalize={capitalize}
@@ -416,10 +490,14 @@ export default function Dealers() {
                 <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-6 text-center">Product Details</h2>
                 <div className="space-y-4">
                   <div className="flex justify-center">
-                    {selectedProduct.image ? (
-                      <img src={selectedProduct.image} alt={selectedProduct.productname} className="h-24 w-24 object-cover rounded-md" />
+                    {selectedProduct.image && JSON.parse(selectedProduct.image).length > 0 ? (
+                      <div className="grid grid-cols-2 gap-2">
+                        {JSON.parse(selectedProduct.image).map((url, index) => (
+                          <img key={index} src={url} alt={`${selectedProduct.productname} ${index}`} className="h-24 w-24 object-cover rounded-md" />
+                        ))}
+                      </div>
                     ) : (
-                      <span className="text-gray-500 dark:text-gray-400 text-sm">No Image</span>
+                      <span className="text-gray-500 dark:text-gray-400 text-sm">No Images</span>
                     )}
                   </div>
                   <div className="grid grid-cols-1 gap-2 text-sm">
@@ -444,11 +522,11 @@ export default function Dealers() {
                     Close
                   </button>
                 </div>
-                </div>
-              )}
-            </Modal>
-          </div>
+              </div>
+            )}
+          </Modal>
         </div>
       </div>
+    </div>
     );
 }

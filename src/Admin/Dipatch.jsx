@@ -169,7 +169,7 @@ export default function Dispatch() {
           style: 'companyName'
         },
         {
-          text: 'Address: Sattur Road, Sivakasi\nEmail: nivasramasamy27@gmail.com\nPhone: +91 63836 59214, +91 96554 56167\n\n',
+          text: 'Address: Sattur Road, Sivakasi\nEmail: nivasramasamy27@gmail.com\nPhone: +91 97865 08621, +91 97868 60010\n\n',
           style: 'companyDetails'
         },
         { text: 'PROFORMA', style: 'invoiceTitle' },
