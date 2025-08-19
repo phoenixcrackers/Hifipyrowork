@@ -322,7 +322,7 @@ export default function Dealers() {
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900 overflow-hidden">
       <Sidebar />
       <Logout />
-      <div className="flex-1 md:ml-64 p-6 pt-16">
+      <div className="flex-1 hundred:ml-64 onefifty:ml-1 p-6 pt-16">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl text-center font-bold text-gray-900 dark:text-gray-100 mb-6">Gift Box Dealers</h2>
           {error && <div className="mb-4 text-red-600 dark:text-red-400 text-sm text-center">{error}</div>}

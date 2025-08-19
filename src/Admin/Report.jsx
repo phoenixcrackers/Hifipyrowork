@@ -83,7 +83,7 @@ export default function Report() {
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
       <Sidebar />
       <Logout />
-      <div className="flex-1 flex items-top justify-center onefifty:ml-[20%] hundred:ml-[15%]">
+      <div className="flex-1 flex items-top justify-center hundred:ml-64 onefifty:ml-1">
         <div className="w-full max-w-5xl p-6">
           <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 dark:text-gray-100 mobile:text-2xl">Report</h1>
 

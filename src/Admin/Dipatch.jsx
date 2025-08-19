@@ -5,8 +5,12 @@ import Sidebar from './Sidebar/Sidebar';
 import Logout from './Logout';
 import pdfMake from "pdfmake/build/pdfmake";
 import pdfFonts from "pdfmake/build/vfs_fonts";
+import Modal from 'react-modal';
 
 pdfMake.vfs = pdfFonts.vfs;
+
+// Bind modal to app element for accessibility
+Modal.setAppElement('#root');
 
 export default function Dispatch() {
   const [bookings, setBookings] = useState([]);
@@ -20,6 +24,7 @@ export default function Dispatch() {
   const [searchTerm, setSearchTerm] = useState('');
   const [productDispatches, setProductDispatches] = useState({});
   const [taxPercent, setTaxPercent] = useState('');
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const cardsPerPage = 9;
 
@@ -103,8 +108,6 @@ export default function Dispatch() {
         }
       }
 
-      console.log('Dispatch Payload:', payload);
-
       await axios.patch(
         `${API_BASE_URL}/api/tracking/bookings/order/${selectedBooking.order_id}/status`,
         payload
@@ -119,7 +122,9 @@ export default function Dispatch() {
       setTransportContact('');
       setLrNumber('');
       setProductDispatches({});
+      setTaxPercent('');
       setError('');
+      setIsModalOpen(false);
     } catch (err) {
       setError(`Failed to update dispatch status: ${err.response?.data?.error || err.message}`);
     }
@@ -283,7 +288,7 @@ export default function Dispatch() {
       }
     };
 
-    const fileName = `Proforma_${booking.customer_name?.replace(/\\s+/g, '_')}_${booking.order_id}.pdf`;
+    const fileName = `Proforma_${booking.customer_name?.replace(/\s+/g, '_')}_${booking.order_id}.pdf`;
     pdfMake.createPdf(docDefinition).download(fileName);
   };
 
@@ -328,11 +333,29 @@ export default function Dispatch() {
   const handlePrevious = () => currentPage > 1 && setCurrentPage(currentPage - 1);
   const handleNext = () => currentPage < totalPages && setCurrentPage(currentPage + 1);
 
+  const openModal = (booking) => {
+    setSelectedBooking(booking);
+    setProductDispatches({});
+    setIsModalOpen(true);
+  };
+
+  const closeModal = () => {
+    setSelectedBooking(null);
+    setTransportType('');
+    setTransportName('');
+    setTransportContact('');
+    setLrNumber('');
+    setProductDispatches({});
+    setTaxPercent('');
+    setError('');
+    setIsModalOpen(false);
+  };
+
   return (
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
       <Sidebar />
       <Logout />
-      <div className="flex-1 flex items-top justify-center onefifty:ml-[20%] hundred:ml-[15%] p-6">
+      <div className="flex-1 flex items-top justify-center hundred:ml-64 onefifty:ml-1 p-6">
         <div className="w-full max-w-5xl">
           <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 dark:text-gray-100">Dispatch</h1>
 
@@ -347,7 +370,7 @@ export default function Dispatch() {
             className="mb-6 w-full p-3 border border-gray-300 dark:border-gray-600 rounded bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400"
           />
 
-          {error && (
+          {error && !isModalOpen && (
             <div className="bg-red-100 dark:bg-red-900 p-2 mb-4 text-red-700 dark:text-red-300 rounded">{error}</div>
           )}
 
@@ -376,10 +399,7 @@ export default function Dispatch() {
                         <p className="text-gray-600 dark:text-gray-400"><span className="font-medium">Remaining:</span> {remaining}</p>
 
                         <button
-                          onClick={() => {
-                            setSelectedBooking(booking);
-                            setProductDispatches({});
-                          }}
+                          onClick={() => openModal(booking)}
                           className="bg-blue-600 dark:bg-blue-500 text-white p-2 rounded mt-2 w-full hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors"
                         >
                           Dispatch
@@ -394,7 +414,7 @@ export default function Dispatch() {
                 <button
                   onClick={handlePrevious}
                   disabled={currentPage === 1}
-                  className={`px-4 py-2 rounded text-white ${currentPage === 1 ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg وضعیت: blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600'}`}
+                  className={`px-4 py-2 rounded text-white ${currentPage === 1 ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' : 'bg-blue-600 dark:bg-blue-500 hover:bg-blue-700 dark:hover:bg-blue-600'}`}
                 >
                   Previous
                 </button>
@@ -419,119 +439,131 @@ export default function Dispatch() {
               </div>
             </>
           )}
-          {selectedBooking && (
-            <div className="mt-4 p-4 bg-gray-100 dark:bg-gray-900 rounded-lg shadow-md">
-              <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">
-                Dispatch Order: {selectedBooking.order_id}
-              </h2>
 
-              <div className="space-y-4 mb-4">
-                {getParsedProducts(selectedBooking).map((product, index) => {
-                  const already = parseInt(product.dispatched || 0);
-                  const totalQty = parseInt(product.quantity || 0);
-                  const remaining = totalQty - already;
-                  const price = parseFloat(product.price) || 0;
-                  const discount = parseFloat(product.discount || 0);
-                  const dispatchQty = parseInt(productDispatches[index]) || 0;
-                  const productTotal = (price - (price * discount / 100)) * dispatchQty;
+          <Modal
+            isOpen={isModalOpen}
+            onRequestClose={closeModal}
+            className="bg-gray-100 dark:bg-gray-900 p-6 rounded-lg shadow-xl max-w-3xl mx-auto mt-20"
+            overlayClassName="fixed inset-0 bg-black/50 bg-opacity-50 flex items-center justify-center"
+          >
+            {selectedBooking && (
+              <div>
+                <h2 className="text-xl font-bold mb-4 text-gray-800 dark:text-gray-100">
+                  Dispatch Order: {selectedBooking.order_id}
+                </h2>
 
-                  return (
-                    <div key={index} className="p-3 border rounded bg-white dark:bg-gray-800">
-                      <p className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-                        {product.productname || `Product ${index + 1}`}
-                      </p>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">Total: Rs.{(price * totalQty).toFixed(2)}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">Discount: {discount}%</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">Dispatched: {already}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-300">Remaining: {remaining}</p>
-                      <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
-                        Dispatch Total: Rs.{productTotal.toFixed(2)}
-                      </p>
-                      {remaining === 0 ? (
-                        <div className="text-green-600 font-medium">Fully Dispatched</div>
-                      ) : (
-                        <input
-                          type="number"
-                          min="0"
-                          max={remaining}
-                          value={productDispatches[index] || ''}
-                          onChange={(e) => handleProductDispatchChange(index, e.target.value, remaining)}
-                          placeholder="Dispatch Qty"
-                          className="p-2 w-full border rounded bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
-                        />
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+                {error && (
+                  <div className="bg-red-100 dark:bg-red-900 p-2 mb-4 text-red-700 dark:text-red-300 rounded">{error}</div>
+                )}
 
-              <select
-                value={transportType}
-                onChange={(e) => setTransportType(e.target.value)}
-                className="p-2 border border-gray-300 dark:border-gray-600 rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100"
-              >
-                <option value="">Select Transport Type</option>
-                <option value="own">Own</option>
-                <option value="transport">Transport</option>
-              </select>
+                <div className="space-y-4 mb-4 max-h-[50vh] overflow-y-auto">
+                  {getParsedProducts(selectedBooking).map((product, index) => {
+                    const already = parseInt(product.dispatched || 0);
+                    const totalQty = parseInt(product.quantity || 0);
+                    const remaining = totalQty - already;
+                    const price = parseFloat(product.price) || 0;
+                    const discount = parseFloat(product.discount || 0);
+                    const dispatchQty = parseInt(productDispatches[index]) || 0;
+                    const productTotal = (price - (price * discount / 100)) * dispatchQty;
 
-              {transportType === 'transport' && (
-                <>
-                  <input
-                    type="text"
-                    value={transportName}
-                    onChange={(e) => setTransportName(e.target.value)}
-                    placeholder="Transport Name *"
-                    className={`p-2 border rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 ${
-                      error && !transportName.trim()
-                        ? 'border-red-500 dark:border-red-400'
-                        : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                  />
-                  <input
-                    type="text"
-                    value={transportContact}
-                    onChange={(e) => setTransportContact(e.target.value)}
-                    placeholder="Contact Number (optional)"
-                    className="p-2 border border-gray-300 dark:border-gray-600 rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100"
-                  />
-                  <input
-                    type="text"
-                    value={lrNumber}
-                    onChange={(e) => setLrNumber(e.target.value)}
-                    placeholder="LR Number *"
-                    className={`p-2 border rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 ${
-                      error && !lrNumber.trim()
-                        ? 'border-red-500 dark:border-red-400'
-                        : 'border-gray-300 dark:border-gray-600'
-                    }`}
-                  />
-                  <input
-                    type="number"
-                    value={taxPercent}
-                    onChange={(e) => setTaxPercent(e.target.value)}
-                    placeholder="Tax % (optional)"
-                    className="p-2 border border-gray-300 dark:border-gray-600 rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100"
-                  />
-                </>
-              )}
+                    return (
+                      <div key={index} className="p-3 border rounded bg-white dark:bg-gray-800">
+                        <p className="text-lg font-semibold text-gray-800 dark:text-gray-100">
+                          {product.productname || `Product ${index + 1}`}
+                        </p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Total: Rs.{(price * totalQty).toFixed(2)}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Discount: {discount}%</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Dispatched: {already}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300">Remaining: {remaining}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+                          Dispatch Total: Rs.{productTotal.toFixed(2)}
+                        </p>
+                        {remaining === 0 ? (
+                          <div className="text-green-600 font-medium">Fully Dispatched</div>
+                        ) : (
+                          <input
+                            type="number"
+                            min="0"
+                            max={remaining}
+                            value={productDispatches[index] || ''}
+                            onChange={(e) => handleProductDispatchChange(index, e.target.value, remaining)}
+                            placeholder="Dispatch Qty"
+                            className="p-2 w-full border rounded bg-gray-50 dark:bg-gray-700 text-gray-800 dark:text-gray-100"
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
 
-              <div className="flex justify-end gap-4">
-                <button
-                  onClick={() => setSelectedBooking(null)}
-                  className="bg-gray-500 dark:bg-gray-400 text-white p-2 rounded hover:bg-gray-600 dark:hover:bg-gray-500"
+                <select
+                  value={transportType}
+                  onChange={(e) => setTransportType(e.target.value)}
+                  className="p-2 border border-gray-300 dark:border-gray-600 rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100"
                 >
-                  Cancel
-                </button>
-                <button
-                  onClick={handleDispatch}
-                  className="bg-green-600 dark:bg-green-500 text-white p-2 rounded hover:bg-green-700 dark:hover:bg-green-600"
-                >
-                  Confirm Dispatch
-                </button>
+                  <option value="">Select Transport Type</option>
+                  <option value="own">Own</option>
+                  <option value="transport">Transport</option>
+                </select>
+
+                {transportType === 'transport' && (
+                  <>
+                    <input
+                      type="text"
+                      value={transportName}
+                      onChange={(e) => setTransportName(e.target.value)}
+                      placeholder="Transport Name *"
+                      className={`p-2 border rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 ${
+                        error && !transportName.trim()
+                          ? 'border-red-500 dark:border-red-400'
+                          : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                    />
+                    <input
+                      type="text"
+                      value={transportContact}
+                      onChange={(e) => setTransportContact(e.target.value)}
+                      placeholder="Contact Number (optional)"
+                      className="p-2 border border-gray-300 dark:border-gray-600 rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100"
+                    />
+                    <input
+                      type="text"
+                      value={lrNumber}
+                      onChange={(e) => setLrNumber(e.target.value)}
+                      placeholder="LR Number *"
+                      className={`p-2 border rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100 ${
+                        error && !lrNumber.trim()
+                          ? 'border-red-500 dark:border-red-400'
+                          : 'border-gray-300 dark:border-gray-600'
+                      }`}
+                    />
+                    <input
+                      type="number"
+                      value={taxPercent}
+                      onChange={(e) => setTaxPercent(e.target.value)}
+                      placeholder="Tax % (optional)"
+                      className="p-2 border border-gray-300 dark:border-gray-600 rounded mb-2 w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100"
+                    />
+                  </>
+                )}
+
+                <div className="flex justify-end gap-4">
+                  <button
+                    onClick={closeModal}
+                    className="bg-gray-500 dark:bg-gray-400 text-white p-2 rounded hover:bg-gray-600 dark:hover:bg-gray-500"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleDispatch}
+                    className="bg-green-600 dark:bg-green-500 text-white p-2 rounded hover:bg-green-700 dark:hover:bg-green-600"
+                  >
+                    Confirm Dispatch
+                  </button>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </Modal>
         </div>
       </div>
     </div>

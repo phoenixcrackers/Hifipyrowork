@@ -23,7 +23,6 @@ export default function Receipt() {
     setError("");
     try {
       const response = await axios.get(`${API_BASE_URL}/api/admins`);
-      console.log("Admins response:", response.data);
       const transformedAdmins = response.data.map((admin) => ({
         ...admin,
         bank_name: Array.isArray(admin.bank_name) ? admin.bank_name : admin.bank_name ? [admin.bank_name] : [],
@@ -125,7 +124,7 @@ export default function Receipt() {
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
       <Sidebar />
       <Logout />
-      <div className="flex-1 flex items-top justify-center onefifty:ml-[20%] hundred:ml-[15%]">
+      <div className="flex-1 flex items-top justify-center hundred:ml-64">
         <div className="w-full max-w-5xl p-6">
           <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 dark:text-gray-100">Receipt</h1>
           {error && (
@@ -176,7 +175,7 @@ export default function Receipt() {
             </div>
           )}
           {loggedInUsername && showAddBankForm && (
-            <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded shadow border border-gray-300 dark:border-gray-600">
+            <div className="mt-4 p-4 bg-white dark:bg-gray-800 rounded shadow border border-gray-300 dark:border-gray-100">
               <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-gray-100">Add Bank Account</h2>
               <form onSubmit={addBankAccount} className="space-y-4">
                 <input
@@ -184,7 +183,7 @@ export default function Receipt() {
                   value={newBankName}
                   onChange={(e) => setNewBankName(e.target.value)}
                   placeholder="Enter bank name"
-                  className="w-full p-2 rounded border border-gray-300 dark:border-gray-600"
+                  className="w-full p-2 rounded border border-gray-300 dark:border-gray-600 dark:text-gray-100"
                   required
                 />
                 <div className="flex gap-2">

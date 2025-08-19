@@ -25,7 +25,7 @@ export default function StockIn() {
       const response = await fetch(`${API_BASE_URL}/api/gift-box-products`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Failed to fetch products');
-      setProducts(data);
+      setProducts([...data].sort((a, b) => (a.serial_number || "").localeCompare(b.serial_number || "", undefined, { numeric: true })));
     } catch (err) {
       setError(err.message);
     }
@@ -44,7 +44,7 @@ export default function StockIn() {
 
   useEffect(() => {
     fetchProducts();
-    const intervalId = setInterval(fetchProducts, 5000);
+    const intervalId = setInterval(fetchProducts, 6000);
     return () => clearInterval(intervalId);
   }, []);
 
@@ -96,7 +96,7 @@ export default function StockIn() {
 
   const indexOfLastProduct = currentPage * productsPerPage;
   const indexOfFirstProduct = indexOfLastProduct - productsPerPage;
-  const currentProducts = products.slice(indexOfFirstProduct, indexOfLastProduct);
+  const currentProducts = products.slice(indexOfFirstProduct, indexOfLastProduct).sort((a, b) => (a.serial_number || "").localeCompare(b.serial_number || "", undefined, { numeric: true }));
   const totalPages = Math.ceil(products.length / productsPerPage);
 
   const handlePageChange = (pageNumber) => {
@@ -108,7 +108,7 @@ export default function StockIn() {
     <div className="flex min-h-screen overflow-hidden bg-gray-100 dark:bg-gray-900">
       <Sidebar />
       <Logout />
-      <div className="flex-1 md:ml-64 p-6 pt-16 overflow-hidden">
+      <div className="flex-1 hundred:ml-64 onefifty:ml-1 p-6 pt-16 overflow-hidden">
         <div className="max-w-5xl mx-auto">
           <h2 className="text-2xl text-center font-bold text-gray-900 dark:text-gray-100 mb-6">Stock In - Gift Box Dealers</h2>
           {error && <div className="mb-4 text-red-600 dark:text-red-300 text-sm text-center">{error}</div>}
@@ -203,7 +203,7 @@ export default function StockIn() {
                     name="quantity"
                     value={addStockData.quantity}
                     onChange={handleInputChange}
-                    className="mt-1 block w-full rounded-md border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-600 dark:focus:border-indigo-500 focus:ring-indigo-600 dark:focus:ring-indigo-500 sm:text-sm transition duration-150 ease-in-out"
+                    className="mt-1 block w-full rounded-md border-2 border-gray-100 px-3 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 shadow-sm focus:border-indigo-600 dark:focus:border-indigo-500 focus:ring-indigo-600 dark:focus:ring-indigo-500 transition duration-150 ease-in-out"
                     required
                     min="1"
                     placeholder="Enter quantity to add"

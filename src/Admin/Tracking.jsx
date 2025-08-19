@@ -141,7 +141,7 @@ export default function Tracking() {
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
       <Sidebar />
       <Logout />
-      <div className="flex-1 flex items-top justify-center onefifty:ml-[20%] hundred:ml-[15%] p-6">
+      <div className="flex-1 flex items-top justify-center hundred:ml-64 onefifty:ml-1 p-6">
         <div className="w-full max-w-5xl">
           <h1 className="text-4xl font-bold mb-8 text-center text-gray-800 dark:text-gray-100">Tracking</h1>
           {error && <div className="bg-red-100 dark:bg-red-900 p-2 mb-4 text-red-700 dark:text-red-300 rounded">{error}</div>}
@@ -159,40 +159,24 @@ export default function Tracking() {
                         <span className="font-medium">Quantity:</span>{' '}
                         {booking.products.reduce((acc, item) => acc + (parseInt(item.quantity) || 0), 0)}
                       </p>
-            <div className="mt-2">
-  <p className="font-medium text-gray-700 dark:text-gray-200 mb-1">Products:</p>
-  <div className="flex flex-wrap gap-2">
-    {booking.products.map((product, idx) => (
-      <span
-        key={idx}
-        className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-3 py-1 rounded-full text-sm font-medium shadow-sm"
-      >
-        {product.productname} × {product.quantity}
-      </span>
-    ))}
-  </div>
-</div>
-
-
+                      <div className="mt-2">
+                        <p className="font-medium text-gray-700 dark:text-gray-200 mb-1">Products:</p>
+                        <div className="flex flex-wrap gap-2">
+                          {booking.products.map((product, idx) => (
+                            <span
+                              key={idx}
+                              className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200 px-3 py-1 rounded-full text-sm font-medium shadow-sm"
+                            >
+                              {product.productname} × {product.quantity}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     <p className="text-gray-600 dark:text-gray-400"><span className="font-medium">Status:</span> {booking.status}</p>
                       <div className="mt-3 flex gap-3">
                         <button onClick={() => handleView(booking)} className="bg-gray-300 text-gray-800 px-3 py-1 rounded hover:bg-gray-400">View</button>
                         <button onClick={() => handleEdit(booking)} className="bg-yellow-400 text-gray-900 px-3 py-1 rounded hover:bg-yellow-500">Edit</button>
-                      </div>
-                      <div className="mt-3">
-                        <select
-                          onChange={(e) => handleStatusChange(booking.id, e.target.value)}
-                          className="p-2 border border-gray-300 dark:border-gray-600 rounded w-full bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-100"
-                          value={selectedBooking?.id === booking.id ? 'paid' : ''}
-                        >
-                          <option value="">Change Status</option>
-                          {['paid', 'dispatched', 'delivered'].map(status => (
-                            <option key={status} value={status} disabled={booking.status === 'delivered'}>
-                              {status}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+                      </div> 
                     </div>
                   </div>
                 ))}

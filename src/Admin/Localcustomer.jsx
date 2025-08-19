@@ -177,7 +177,7 @@ export default function Localcustomer() {
     <div className="flex min-h-screen bg-gray-100 dark:bg-gray-900">
       <Sidebar />
       <Logout />
-      <div className="flex-1 p-6 mobile:ml-0 hundred:ml-[15%] onefifty:ml-[15%]">
+      <div className="flex-1 p-6 hundred:ml-64 onefifty:ml-1 pt-10">
         <div className="mx-auto max-w-3xl">
           <h1 className="text-2xl font-bold mb-6 text-gray-800 dark:text-gray-100 text-center">Add Customer</h1>
           {error && <div className="mb-4 p-4 bg-red-100 dark:bg-red-900 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-300 rounded-lg text-center">{error}</div>}

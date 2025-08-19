@@ -134,7 +134,7 @@ const Book = () => {
         const parsedProducts = products.map(product => ({
           ...product,
           image: product.image ? JSON.parse(product.image) : []
-        }));
+        })).sort((a, b) => (a.serial_number || "").localeCompare(b.serial_number || "", undefined, { numeric: true }));
 
         const initialImageIndexes = parsedProducts.reduce((acc, p) => ({
           ...acc,
@@ -224,7 +224,7 @@ const Book = () => {
       const p = state.products.find(p => p.serial_number === serial);
       return { 
         id: p.id, 
-        product_type: 'gift_box_products',
+        product_type: 'gift_box_dealers',
         productname: p.productname, 
         quantity: qty, 
         price: parseFloat(p.price), 
@@ -248,7 +248,7 @@ const Book = () => {
       const parsedProducts = products.map(product => ({
         ...product,
         image: product.image ? JSON.parse(product.image) : []
-      }));
+      })).sort((a, b) => (a.serial_number || "").localeCompare(b.serial_number || "", undefined, { numeric: true }));
       const updatedImageIndexes = parsedProducts.reduce((acc, p) => ({
         ...acc,
         [p.serial_number]: 0
@@ -374,7 +374,7 @@ const Book = () => {
     !state.search || 
     p.productname.toLowerCase().includes(state.search.toLowerCase()) || 
     p.serial_number.toLowerCase().includes(state.search.toLowerCase())
-  ), [state.products, state.search]);
+  ).sort((a, b) => (a.serial_number || "").localeCompare(b.serial_number || "", undefined, { numeric: true })), [state.products, state.search]);
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-gray-900">
@@ -412,7 +412,7 @@ const Book = () => {
         <motion.div 
           initial={{ opacity: 0, scale: 0.8 }} 
           animate={{ opacity: 1, scale: 1 }} 
-          exit={{ opacity: 0, scale: 0.8 }} 
+          exit={{ opacity: 0, scale: 0.8}} 
           transition={{ duration: 0.3 }} 
           className="fixed inset-0 flex items-center justify-center z-50"
         >
@@ -715,24 +715,24 @@ const Book = () => {
                 { label: "Email", key: "email", type: "email", placeholder: "Enter email", required: true }
               ].map(({ label, key, type, placeholder, required, options }) => (
                 <div key={key}>
-                  <label className="text-sm font-medium text-gray-700 dark:text-gray-200">{label} {required && '*'}</label>
+                  <label className="text-sm font-medium text-gray-700 dark:text-gray-800">{label} {required && '*'}</label>
                   {type === "select" ? (
                     <select 
                       value={state.customer[key]} 
                       onChange={e => handleInputChange(key, e.target.value)} 
-                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
+                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
                       style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark }} 
                       required={required}
                     >
                       <option value="" className="bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100">Select {label}</option>
-                      {options.map(opt => <option key={opt.id || opt.name} value={opt.name} className="bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100">{opt.name}</option>)}
+                      {options.map(opt => <option key={opt.id || opt.name} value={opt.name} className="bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-800">{opt.name}</option>)}
                     </select>
                   ) : type === "textarea" ? (
                     <textarea 
                       value={state.customer[key]} 
                       onChange={e => handleInputChange(key, e.target.value)} 
                       placeholder={placeholder} 
-                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
+                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
                       style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark }} 
                       required={required}
                     />
@@ -742,7 +742,7 @@ const Book = () => {
                       value={state.customer[key]} 
                       onChange={e => handleInputChange(key, e.target.value)} 
                       placeholder={placeholder} 
-                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-100 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
+                      className="w-full p-2 rounded-md mt-1 bg-white dark:bg-gray-900 text-slate-800 dark:text-gray-800 border border-gray-300 dark:border-gray-600 focus:ring-2 focus:ring-blue-400 dark:focus:ring-blue-500 focus:border-transparent" 
                       style={{ background: styles.input.background, backgroundDark: styles.input.backgroundDark, border: styles.input.border, borderDark: styles.input.borderDark }} 
                       required={required}
                     />

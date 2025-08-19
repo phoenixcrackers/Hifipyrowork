@@ -226,6 +226,7 @@ export default function Ledger() {
       doc.text("Anil Kumar Eye Hospital Opp, Sattur Road, Sivakasi", margin, yPosition);
 
       yPosition += 15;
+      doc.setFont("helvetica", "normal");
       doc.text("Mobile: +91 97865 08621, +91 97868 60010", margin, yPosition);
 
       // Customer Details (Right side)

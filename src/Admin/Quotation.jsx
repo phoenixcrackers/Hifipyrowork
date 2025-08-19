@@ -1,5 +1,3 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import axios from "axios"
 import Select from "react-select"
@@ -50,10 +48,6 @@ export default function Quotation() {
       try {
         const quotations = await axios.get(`${API_BASE_URL}/api/quotations`).then((res) => {
           const data = Array.isArray(res.data) ? res.data : []
-          console.log(
-            "Quotations with total:",
-            data.map((q) => ({ est_id: q.est_id, total: q.total })),
-          )
           return data
         })
         setState((s) => ({ ...s, quotations, loading: false }))
@@ -119,9 +113,9 @@ export default function Quotation() {
     const validatedValue = field === "discount" ? Math.min(newValue, 100) : newValue // Cap discount at 100
     setState((s) => ({
       ...s,
-      [isEdit ? "editCart" : "cart"]: s[isEdit ? "editCart" : "cart"]
-        .map((item) => (item.id === id && item.product_type === type ? { ...item, [field]: validatedValue } : item))
-        .filter((item) => item.quantity > 0),
+      [isEdit ? "editCart" : "cart"]: s[isEdit ? "editCart" : "cart"].map((item) =>
+        item.id === id && item.product_type === type ? { ...item, [field]: validatedValue } : item
+      ),
     }))
   }
 
@@ -182,7 +176,7 @@ export default function Quotation() {
       setTimeout(() => setState((s) => ({ ...s, success: "" })), 3000)
     } catch (err) {
       console.error("Create quotation error:", err)
-      setState((s) => ({ ...s, error: "Failed to create quotation" }))
+      setState((s) => ({ ...s, error: err.response?.data?.message || "Failed to create quotation" }))
     }
   }
 
@@ -229,7 +223,7 @@ export default function Quotation() {
       setTimeout(() => setState((s) => ({ ...s, success: "" })), 3000)
     } catch (err) {
       console.error("Edit quotation error:", err)
-      setState((s) => ({ ...s, error: "Failed to edit quotation" }))
+      setState((s) => ({ ...s, error: err.response?.data?.message || "Failed to edit quotation" }))
     }
   }
 
@@ -241,8 +235,17 @@ export default function Quotation() {
     }
 
     try {
+      const customer = state.customers.find((c) => c.id.toString() === state.selectedQuotation.customer_id)
       const response = await axios.post(`${API_BASE_URL}/api/quotations/book`, {
         est_id: state.selectedQuotation.est_id,
+        customer_id: Number(state.selectedQuotation.customer_id),
+        customer_name: customer?.customer_name || state.selectedQuotation.customer_name,
+        address: customer?.address,
+        mobile_number: customer?.mobile_number,
+        email: customer?.email,
+        district: customer?.district,
+        state: customer?.state,
+        customer_type: customer?.customer_type || state.selectedQuotation.customer_type || "User",
         products: state.editCart,
         total: Number.parseFloat(total),
         extra_charges: state.extraCharges,
@@ -270,7 +273,7 @@ export default function Quotation() {
       setTimeout(() => setState((s) => ({ ...s, success: "" })), 3000)
     } catch (err) {
       console.error("Book quotation error:", err)
-      setState((s) => ({ ...s, error: err.message || "Failed to book quotation" }))
+      setState((s) => ({ ...s, error: err.response?.data?.message || "Failed to book quotation" }))
     }
   }
 
@@ -286,7 +289,7 @@ export default function Quotation() {
       setTimeout(() => setState((s) => ({ ...s, success: "" })), 3000)
     } catch (err) {
       console.error("Cancel quotation error:", err)
-      setState((s) => ({ ...s, error: "Failed to cancel quotation" }))
+      setState((s) => ({ ...s, error: err.response?.data?.message || "Failed to cancel quotation" }))
     }
   }
 
@@ -309,7 +312,7 @@ export default function Quotation() {
           parsedProducts = q.products
         }
         if (
-          !parsedProducts.every((p) => p.id && p.product_type && p.price && p.discount !== undefined && p.quantity > 0)
+          !parsedProducts.every((p) => p.id && p.product_type && p.price && p.discount !== undefined && p.quantity >= 0)
         ) {
           console.error("Invalid product data in parsedProducts")
           setState((s) => ({
@@ -336,7 +339,7 @@ export default function Quotation() {
         ...s,
         selectedQuotation: q,
         [modalType === "book" ? "bookModal" : "editModal"]: true,
-        editCart: parsedProducts.map((p) => ({ ...p, quantity: p.quantity || 1 })),
+        editCart: parsedProducts.map((p) => ({ ...p, quantity: p.quantity || 0 })),
         extraCharges,
       }))
     }
@@ -360,10 +363,12 @@ export default function Quotation() {
     }))
   }
 
-  const productOptions = state.products.map((p) => ({
-    value: `${p.id}-${p.product_type}`,
-    label: `${p.serial_number} - ${p.productname} (${p.product_type})`,
-  }))
+  const productOptions = state.products
+    .sort((a, b) => (a.serial_number || "").localeCompare(b.serial_number || "", undefined, { numeric: true }))
+    .map((p) => ({
+      value: `${p.id}-${p.product_type}`,
+      label: `${p.serial_number} - ${p.productname} (${p.product_type})`,
+    }))
 
   const selectStyles = {
     control: (base) => ({
@@ -413,58 +418,60 @@ export default function Quotation() {
       </thead>
       <tbody>
         {items.length ? (
-          items.map((item) => (
-            <tr
-              key={`${item.id}-${item.product_type}`}
-              className="border-t border-gray-200 dark:border-gray-700 mobile:text-sm"
-            >
-              <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{item.serial_number}</td>
-              <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{item.productname}</td>
-              <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{item.product_type}</td>
-              <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">₹{item.price}</td>
-              <td className="text-center mobile:p-1">
-                <input
-                  type="number"
-                  min="0"
-                  max="100"
-                  value={item.discount}
-                  onChange={(e) =>
-                    updateQuantityOrDiscount(item.id, item.product_type, "discount", e.target.value, isEdit)
-                  }
-                  className="w-16 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
-                />
-              </td>
-              <td className="text-center mobile:p-1">
-                <input
-                  type="number"
-                  min="0"
-                  value={item.quantity}
-                  onChange={(e) =>
-                    updateQuantityOrDiscount(item.id, item.product_type, "quantity", e.target.value, isEdit)
-                  }
-                  className="w-16 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
-                />
-              </td>
-              <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{item.per}</td>
-              <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">
-                ₹{(item.price * (1 - item.discount / 100) * item.quantity).toFixed(2)}
-              </td>
-              {isEdit && (
+          [...items]
+            .sort((a, b) => (a.serial_number || "").localeCompare(b.serial_number || "", undefined, { numeric: true }))
+            .map((item) => (
+              <tr
+                key={`${item.id}-${item.product_type}`}
+                className="border-t border-gray-200 dark:border-gray-700 mobile:text-sm"
+              >
+                <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{item.serial_number}</td>
+                <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{item.productname}</td>
+                <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{item.product_type}</td>
+                <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">₹{item.price}</td>
                 <td className="text-center mobile:p-1">
-                  <button
-                    onClick={() => removeFromCart(item.id, item.product_type, true)}
-                    className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-bold mobile:text-xs"
-                  >
-                    Remove
-                  </button>
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    value={item.discount}
+                    onChange={(e) =>
+                      updateQuantityOrDiscount(item.id, item.product_type, "discount", e.target.value, isEdit)
+                    }
+                    className="w-16 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
+                  />
                 </td>
-              )}
-            </tr>
-          ))
+                <td className="text-center mobile:p-1">
+                  <input
+                    type="number"
+                    min="0"
+                    value={item.quantity}
+                    onChange={(e) =>
+                      updateQuantityOrDiscount(item.id, item.product_type, "quantity", e.target.value, isEdit)
+                    }
+                    className="w-16 p-1 border rounded text-center text-gray-800 dark:text-gray-100 dark:bg-gray-700"
+                  />
+                </td>
+                <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">{item.per}</td>
+                <td className="text-center mobile:p-1 text-gray-800 dark:text-gray-100">
+                  ₹{(item.price * (1 - item.discount / 100) * item.quantity).toFixed(2)}
+                </td>
+                {isEdit && (
+                  <td className="text-center mobile:p-1">
+                    <button
+                      onClick={() => removeFromCart(item.id, item.product_type, true)}
+                      className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300 font-bold mobile:text-xs"
+                    >
+                      Remove
+                    </button>
+                  </td>
+                )}
+              </tr>
+            ))
         ) : (
           <tr>
             <td
-              colSpan={isEdit ? 7 : 6}
+              colSpan={isEdit ? 9 : 8}
               className="p-4 text-center text-gray-500 dark:text-gray-400 mobile:p-2 mobile:text-xs"
             >
               No products
