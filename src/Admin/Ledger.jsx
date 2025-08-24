@@ -9,7 +9,7 @@ import axios from "axios";
 
 Modal.setAppElement("#root");
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 9;
 
 const formatDate = (date) => {
   const d = new Date(date);

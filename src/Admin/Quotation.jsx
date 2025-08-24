@@ -344,6 +344,23 @@ export default function Quotation() {
       }))
     }
   }
+const handleDeleteQuotation = async (est_id) => {
+  if (!window.confirm("Are you sure you want to delete this quotation?")) return;
+
+  try {
+    await axios.delete(`${API_BASE_URL}/api/quotations/${est_id}`);
+    setState((s) => ({
+      ...s,
+      quotations: s.quotations.filter((q) => q.est_id !== est_id),
+      success: "Quotation deleted successfully!",
+      error: "",
+    }));
+    setTimeout(() => setState((s) => ({ ...s, success: "" })), 3000);
+  } catch (err) {
+    console.error("Delete quotation error:", err);
+    setState((s) => ({ ...s, error: err.response?.data?.message || "Failed to delete quotation" }));
+  }
+};
 
   const closeModal = () => {
     if (state.pdfUrl) {
@@ -626,6 +643,15 @@ export default function Quotation() {
                       >
                         Cancel
                       </button>
+<button
+  onClick={() => handleDeleteQuotation(q.est_id)}
+  className="flex-1 bg-red-700 dark:bg-red-600 text-white px-2 py-1 rounded-md text-sm hover:bg-red-800 dark:hover:bg-red-700"
+>
+  Delete
+</button>
+
+
+
                     </div>
                   </div>
                 ))}
@@ -839,6 +865,7 @@ export default function Quotation() {
                   >
                     Book
                   </button>
+
                 </div>
               </div>
             )}

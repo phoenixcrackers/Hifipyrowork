@@ -18,6 +18,23 @@ export default function Tracking() {
   const [currentPage, setCurrentPage] = useState(1);
   const cardsPerPage = 9;
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+const handleDeleteBooking = async (bookingId) => {
+  if (!window.confirm("Are you sure you want to delete this booking? This action cannot be undone.")) {
+    return;
+  }
+
+  try {
+   await axios.delete(`${API_BASE_URL}/api/dbooking/${bookingId}`);
+
+    // Remove from state immediately for responsiveness
+    setBookings((prev) => prev.filter((b) => b.id !== bookingId));
+    setError(""); 
+  } catch (err) {
+    console.error("Delete booking error:", err);
+    setError("Failed to delete booking");
+  }
+};
+
 
   const fetchBookings = async () => {
     try {
@@ -173,10 +190,24 @@ export default function Tracking() {
                         </div>
                       </div>
                     <p className="text-gray-600 dark:text-gray-400"><span className="font-medium">Status:</span> {booking.status}</p>
-                      <div className="mt-3 flex gap-3">
-                        <button onClick={() => handleView(booking)} className="bg-gray-300 text-gray-800 px-3 py-1 rounded hover:bg-gray-400">View</button>
-                        <button onClick={() => handleEdit(booking)} className="bg-yellow-400 text-gray-900 px-3 py-1 rounded hover:bg-yellow-500">Edit</button>
-                      </div> 
+                   <div className="mt-3 flex gap-3">
+  <button 
+    onClick={() => handleView(booking)} 
+    className="bg-gray-300 text-gray-800 px-3 py-1 rounded hover:bg-gray-400">
+    View
+  </button>
+  <button 
+    onClick={() => handleEdit(booking)} 
+    className="bg-yellow-400 text-gray-900 px-3 py-1 rounded hover:bg-yellow-500">
+    Edit
+  </button>
+  <button 
+    onClick={() => handleDeleteBooking(booking.id)} 
+    className="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700">
+    Delete
+  </button>
+</div>
+
                     </div>
                   </div>
                 ))}
