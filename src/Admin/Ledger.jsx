@@ -226,7 +226,6 @@ export default function Ledger() {
       doc.text("Anil Kumar Eye Hospital Opp, Sattur Road, Sivakasi", margin, yPosition);
 
       yPosition += 15;
-      doc.setFont("helvetica", "normal");
       doc.text("Mobile: +91 97865 08621, +91 97868 60010", margin, yPosition);
 
       // Customer Details (Right side)
@@ -246,77 +245,101 @@ export default function Ledger() {
 
       yPosition += 60;
 
-      // Table Setup - 6 columns for payments including bank_name
-      const tableWidth = pageWidth - 2 * margin;
-      const colWidths = [40, 100, 100, 100, 80, 100];
-      const colPositions = [margin];
+      // Parse products and calculate totals
+      const parsedProducts = Array.isArray(booking.products)
+        ? booking.products
+        : JSON.parse(booking.products || "[]");
+      const extraCharges = parseExtraCharges(booking.extra_charges);
+      const totalQty = parsedProducts.reduce((sum, p) => sum + Number(p.quantity || 0), 0);
+      const debit = calculateDebit(dispatchLogs, parsedProducts, extraCharges);
+      const credit = payments.reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
+      const netBalance = credit - debit;
 
-      for (let i = 0; i < colWidths.length - 1; i++) {
-        colPositions.push(colPositions[i] + colWidths[i]);
+      // Ledger Table Setup - 7 columns
+      const tableWidth = pageWidth - 2 * margin;
+      const ledgerColWidths = [40, 150, 60, 60, 80, 60, 60];
+      const ledgerColPositions = [margin];
+      for (let i = 0; i < ledgerColWidths.length - 1; i++) {
+        ledgerColPositions.push(ledgerColPositions[i] + ledgerColWidths[i]);
       }
 
-      // Table Headers
+      // Ledger Table Headers
       doc.setFontSize(9);
       doc.setFont("helvetica", "bold");
+      const ledgerHeaders = ["Sl.No", "Description", "Qty", "Rate", "Date", "Debit", "Credit"];
 
-      const headers = ["Sl.No", "Payment Type", "Bank Name", "Paid to", "Date", "Amount"];
-
-      // Draw header background
+      // Draw ledger header background
       doc.setFillColor(240, 240, 240);
       doc.rect(margin, yPosition - 5, tableWidth, 20, "F");
 
-      // Draw header borders
+      // Draw ledger header borders
       doc.setLineWidth(0.5);
       doc.rect(margin, yPosition - 5, tableWidth, 20);
 
-      // Vertical lines for headers
-      for (let i = 1; i < colPositions.length; i++) {
-        doc.line(colPositions[i], yPosition - 5, colPositions[i], yPosition + 15);
+      // Vertical lines for ledger headers
+      for (let i = 1; i < ledgerColPositions.length; i++) {
+        doc.line(ledgerColPositions[i], yPosition - 5, ledgerColPositions[i], yPosition + 15);
       }
 
-      // Header text
-      headers.forEach((header, i) => {
-        const textX = colPositions[i] + colWidths[i] / 2;
+      // Ledger header text
+      ledgerHeaders.forEach((header, i) => {
+        const textX = ledgerColPositions[i] + ledgerColWidths[i] / 2;
         doc.text(header, textX, yPosition + 8, { align: "center" });
       });
 
       yPosition += 20;
 
-      // Table Data - Payments
+      // Ledger Table Data
       doc.setFont("helvetica", "normal");
       doc.setFontSize(8);
 
-      const tableData = payments
-        .map((payment, index) => ({
-          slNo: (index + 1).toString(),
-          paymentType: payment.payment_method || "N/A",
-          bankName: payment.bank_name || "N/A",
-          paidToAdmin: payment.admin_username || "N/A",
-          date: formatDate(payment.transaction_date || payment.created_at),
-          amount: Number.parseFloat(payment.amount_paid || "0").toFixed(2),
-          dateSort: new Date(payment.transaction_date || payment.created_at).getTime(),
-        }))
-        .sort((a, b) => a.dateSort - b.dateSort);
+      const tableData = [
+        ...dispatchLogs.map((log, index) => {
+          const prod = parsedProducts[log.product_index];
+          const price = prod ? parseFloat(prod.price) || 0 : 0;
+          const discount = prod ? parseFloat(prod.discount || 0) : 0;
+          const effectivePrice = price - (price * discount / 100);
+          const amount = effectivePrice * (log.dispatched_qty || 0);
+          return {
+            slNo: index + 1,
+            productName: log.product_name || "N/A",
+            quantity: log.dispatched_qty || 0,
+            ratePerBox: effectivePrice.toFixed(2),
+            debit: amount.toFixed(2),
+            credit: "",
+            date: new Date(log.dispatched_at).getTime(),
+          };
+        }),
+        ...payments.map((payment, index) => ({
+          slNo: dispatchLogs.length + index + 1,
+          productName: `Payment (${payment.payment_method || "N/A"})`,
+          quantity: "",
+          ratePerBox: "",
+          debit: "",
+          credit: Number(payment.amount_paid || 0).toFixed(2),
+          date: new Date(payment.transaction_date || payment.created_at).getTime(),
+        })),
+      ].sort((a, b) => a.date - b.date);
 
-      // Draw table rows
+      // Draw ledger table rows
       tableData.forEach((row) => {
         if (yPosition > pageHeight - 100) {
           doc.addPage();
           yPosition = 60;
 
-          // Redraw headers on new page
+          // Redraw ledger headers on new page
           doc.setFontSize(9);
           doc.setFont("helvetica", "bold");
           doc.setFillColor(240, 240, 240);
           doc.rect(margin, yPosition - 5, tableWidth, 20, "F");
           doc.rect(margin, yPosition - 5, tableWidth, 20);
 
-          for (let i = 1; i < colPositions.length; i++) {
-            doc.line(colPositions[i], yPosition - 5, colPositions[i], yPosition + 15);
+          for (let i = 1; i < ledgerColPositions.length; i++) {
+            doc.line(ledgerColPositions[i], yPosition - 5, ledgerColPositions[i], yPosition + 15);
           }
 
-          headers.forEach((header, i) => {
-            const textX = colPositions[i] + colWidths[i] / 2;
+          ledgerHeaders.forEach((header, i) => {
+            const textX = ledgerColPositions[i] + ledgerColWidths[i] / 2;
             doc.text(header, textX, yPosition + 8, { align: "center" });
           });
 
@@ -329,17 +352,207 @@ export default function Ledger() {
         doc.rect(margin, yPosition, tableWidth, 15);
 
         // Draw vertical lines
-        for (let i = 1; i < colPositions.length; i++) {
-          doc.line(colPositions[i], yPosition, colPositions[i], yPosition + 15);
+        for (let i = 1; i < ledgerColPositions.length; i++) {
+          doc.line(ledgerColPositions[i], yPosition, ledgerColPositions[i], yPosition + 15);
         }
 
         // Row data
-        const rowData = [row.slNo, row.paymentType, row.bankName, row.paidToAdmin, row.date, `Rs.${row.amount}`];
+        const rowData = [
+          row.slNo,
+          row.productName,
+          row.quantity,
+          row.ratePerBox,
+          formatDate(row.date),
+          row.debit,
+          row.credit,
+        ];
 
         rowData.forEach((data, i) => {
           if (data) {
-            const textX = colPositions[i] + colWidths[i] / 2;
-            const maxWidth = colWidths[i] - 4;
+            const textX = ledgerColPositions[i] + ledgerColWidths[i] / 2;
+            const maxWidth = ledgerColWidths[i] - 4;
+            const align = i === 0 || i === 2 || i >= 4 ? "center" : "center";
+            if (i === 5 && data) doc.setTextColor(255, 0, 0); // Red for debit
+            if (i === 6 && data) doc.setTextColor(0, 128, 0); // Green for credit
+            doc.text(data.toString(), textX, yPosition + 10, { align, maxWidth });
+            doc.setTextColor(0, 0, 0); // Reset color
+          }
+        });
+
+        yPosition += 15;
+      });
+
+      // Extra charges for ledger table
+      const tax = Number.parseFloat(extraCharges.tax || 0);
+      const pf = Number.parseFloat(extraCharges.pf || 0);
+      const minus = Number.parseFloat(extraCharges.minus || 0);
+
+      if (tax || pf || minus) {
+        yPosition += 10;
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "bold");
+
+        if (tax) {
+          doc.rect(margin, yPosition, tableWidth, 15);
+          for (let i = 1; i < ledgerColPositions.length; i++) {
+            doc.line(ledgerColPositions[i], yPosition, ledgerColPositions[i], yPosition + 15);
+          }
+          doc.text("Tax", ledgerColPositions[1] + 4, yPosition + 10, { align: "left" });
+          doc.setTextColor(255, 0, 0); // Red for debit
+          doc.text(`Rs${tax.toFixed(2)}`, ledgerColPositions[5] + ledgerColWidths[5] / 2, yPosition + 10, { align: "center" });
+          doc.setTextColor(0, 0, 0);
+          yPosition += 15;
+        }
+        if (pf) {
+          doc.rect(margin, yPosition, tableWidth, 15);
+          for (let i = 1; i < ledgerColPositions.length; i++) {
+            doc.line(ledgerColPositions[i], yPosition, ledgerColPositions[i], yPosition + 15);
+          }
+          doc.text("PF Charges", ledgerColPositions[1] + 4, yPosition + 10, { align: "left" });
+          doc.setTextColor(255, 0, 0); // Red for debit
+          doc.text(`Rs${pf.toFixed(2)}`, ledgerColPositions[5] + ledgerColWidths[5] / 2, yPosition + 10, { align: "center" });
+          doc.setTextColor(0, 0, 0);
+          yPosition += 15;
+        }
+        if (minus) {
+          doc.rect(margin, yPosition, tableWidth, 15);
+          for (let i = 1; i < ledgerColPositions.length; i++) {
+            doc.line(ledgerColPositions[i], yPosition, ledgerColPositions[i], yPosition + 15);
+          }
+          doc.text("Discount (Minus)", ledgerColPositions[1] + 4, yPosition + 10, { align: "left" });
+          doc.setTextColor(255, 0, 0); // Red for debit
+          doc.text(`-Rs${minus.toFixed(2)}`, ledgerColPositions[5] + ledgerColWidths[5] / 2, yPosition + 10, { align: "center" });
+          doc.setTextColor(0, 0, 0);
+          yPosition += 15;
+        }
+      }
+
+      // Total row for ledger table
+      doc.setFont("helvetica", "bold");
+      doc.rect(margin, yPosition, tableWidth, 15);
+      for (let i = 1; i < ledgerColPositions.length; i++) {
+        doc.line(ledgerColPositions[i], yPosition, ledgerColPositions[i], yPosition + 15);
+      }
+      doc.text("Total", ledgerColPositions[1] + 4, yPosition + 10, { align: "left" });
+      doc.text(totalQty.toString(), ledgerColPositions[2] + ledgerColWidths[2] / 2, yPosition + 10, { align: "center" });
+      doc.setTextColor(255, 0, 0); // Red for debit
+      doc.text(`Rs${debit.toFixed(2)}`, ledgerColPositions[5] + ledgerColWidths[5] / 2, yPosition + 10, { align: "center" });
+      doc.setTextColor(0, 128, 0); // Green for credit
+      doc.text(`Rs${credit.toFixed(2)}`, ledgerColPositions[6] + ledgerColWidths[6] / 2, yPosition + 10, { align: "center" });
+      doc.setTextColor(0, 0, 0);
+      yPosition += 15;
+
+      // Net Balance row
+      doc.rect(margin, yPosition, tableWidth, 15);
+      for (let i = 1; i < ledgerColPositions.length; i++) {
+        doc.line(ledgerColPositions[i], yPosition, ledgerColPositions[i], yPosition + 15);
+      }
+      doc.text("Net Balance", ledgerColPositions[1] + 4, yPosition + 10, { align: "left" });
+      // Set color based on netBalance
+      if (netBalance < 0) {
+        doc.setTextColor(255, 0, 0); // Red for outstanding
+      } else {
+        doc.setTextColor(0, 128, 0); // Green for advance
+      }
+      doc.text(
+        `Rs${Math.abs(netBalance).toFixed(2)} ${netBalance < 0 ? "(Outstanding)" : "(Advance)"}`,
+        ledgerColPositions[5] + (ledgerColWidths[5] + ledgerColWidths[6]) / 2,
+        yPosition + 10,
+        { align: "center" }
+      );
+      doc.setTextColor(0, 0, 0); // Reset color
+      yPosition += 30;
+
+      // Payment Table Setup - 6 columns
+      const paymentColWidths = [40, 100, 100, 100, 80, 100];
+      const paymentColPositions = [margin];
+      for (let i = 0; i < paymentColWidths.length - 1; i++) {
+        paymentColPositions.push(paymentColPositions[i] + paymentColWidths[i]);
+      }
+
+      // Payment Table Headers
+      doc.setFontSize(9);
+      doc.setFont("helvetica", "bold");
+      const paymentHeaders = ["Sl.No", "Payment Type", "Bank Name", "Paid to", "Date", "Amount"];
+
+      // Draw payment header background
+      doc.setFillColor(240, 240, 240);
+      doc.rect(margin, yPosition - 5, tableWidth, 20, "F");
+
+      // Draw payment header borders
+      doc.rect(margin, yPosition - 5, tableWidth, 20);
+
+      // Vertical lines for payment headers
+      for (let i = 1; i < paymentColPositions.length; i++) {
+        doc.line(paymentColPositions[i], yPosition - 5, paymentColPositions[i], yPosition + 15);
+      }
+
+      // Payment header text
+      paymentHeaders.forEach((header, i) => {
+        const textX = paymentColPositions[i] + paymentColWidths[i] / 2;
+        doc.text(header, textX, yPosition + 8, { align: "center" });
+      });
+
+      yPosition += 20;
+
+      // Payment Table Data
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+
+      const paymentTableData = payments
+        .map((payment, index) => ({
+          slNo: (index + 1).toString(),
+          paymentType: payment.payment_method || "N/A",
+          bankName: payment.bank_name || "N/A",
+          paidToAdmin: payment.admin_username || "N/A",
+          date: formatDate(payment.transaction_date || payment.created_at),
+          amount: Number.parseFloat(payment.amount_paid || "0").toFixed(2),
+          dateSort: new Date(payment.transaction_date || payment.created_at).getTime(),
+        }))
+        .sort((a, b) => a.dateSort - b.dateSort);
+
+      // Draw payment table rows
+      paymentTableData.forEach((row) => {
+        if (yPosition > pageHeight - 100) {
+          doc.addPage();
+          yPosition = 60;
+
+          // Redraw payment headers on new page
+          doc.setFontSize(9);
+          doc.setFont("helvetica", "bold");
+          doc.setFillColor(240, 240, 240);
+          doc.rect(margin, yPosition - 5, tableWidth, 20, "F");
+          doc.rect(margin, yPosition - 5, tableWidth, 20);
+
+          for (let i = 1; i < paymentColPositions.length; i++) {
+            doc.line(paymentColPositions[i], yPosition - 5, paymentColPositions[i], yPosition + 15);
+          }
+
+          paymentHeaders.forEach((header, i) => {
+            const textX = paymentColPositions[i] + paymentColWidths[i] / 2;
+            doc.text(header, textX, yPosition + 8, { align: "center" });
+          });
+
+          yPosition += 20;
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+        }
+
+        // Draw row border
+        doc.rect(margin, yPosition, tableWidth, 15);
+
+        // Draw vertical lines
+        for (let i = 1; i < paymentColPositions.length; i++) {
+          doc.line(paymentColPositions[i], yPosition, paymentColPositions[i], yPosition + 15);
+        }
+
+        // Row data
+        const rowData = [row.slNo, row.paymentType, row.bankName, row.paidToAdmin, row.date, `Rs${row.amount}`];
+
+        rowData.forEach((data, i) => {
+          if (data) {
+            const textX = paymentColPositions[i] + paymentColWidths[i] / 2;
+            const maxWidth = paymentColWidths[i] - 4;
             doc.text(data, textX, yPosition + 10, { align: "center", maxWidth });
           }
         });
@@ -347,44 +560,39 @@ export default function Ledger() {
         yPosition += 15;
       });
 
-      // Extra charges section
-      const extraCharges = parseExtraCharges(booking.extra_charges);
-      const tax = Number.parseFloat(extraCharges.tax || 0);
-      const pf = Number.parseFloat(extraCharges.pf || 0);
-      const minus = Number.parseFloat(extraCharges.minus || 0);
-
+      // Extra charges section (for payment table)
       if (tax || pf || minus) {
         yPosition += 30;
         doc.setFontSize(9);
         doc.setFont("helvetica", "bold");
 
-        // Align amounts with the total amount column
-        const amountX = colPositions[5] + colWidths[5] / 2;
+        // Align amounts with the amount column
+        const amountX = paymentColPositions[5] + paymentColWidths[5] / 2;
 
         if (tax) {
-          doc.text(`Tax:`, colPositions[4] + colWidths[4] / 2, yPosition, { align: "center" });
-          doc.text(`Rs.${tax.toFixed(2)}`, amountX, yPosition, { align: "center" });
+          doc.text(`Tax:`, paymentColPositions[4] + paymentColWidths[4] / 2, yPosition, { align: "center" });
+          doc.text(`Rs${tax.toFixed(2)}`, amountX, yPosition, { align: "center" });
           yPosition += 12;
         }
         if (pf) {
-          doc.text(`P&F:`, colPositions[4] + colWidths[4] / 2, yPosition, { align: "center" });
-          doc.text(`Rs.${pf.toFixed(2)}`, amountX, yPosition, { align: "center" });
+          doc.text(`P&F:`, paymentColPositions[4] + paymentColWidths[4] / 2, yPosition, { align: "center" });
+          doc.text(`Rs${pf.toFixed(2)}`, amountX, yPosition, { align: "center" });
           yPosition += 12;
         }
         if (minus) {
-          doc.text(`Deduction:`, colPositions[4] + colWidths[4] / 2, yPosition, { align: "center" });
-          doc.text(`Rs.${minus.toFixed(2)}`, amountX, yPosition, { align: "center" });
+          doc.text(`Deduction:`, paymentColPositions[4] + paymentColWidths[4] / 2, yPosition, { align: "center" });
+          doc.text(`-Rs${minus.toFixed(2)}`, amountX, yPosition, { align: "center" });
           yPosition += 12;
         }
       }
 
-      // Total row
+      // Total row for payment table
       const totalAmount = payments.reduce((sum, p) => sum + Number.parseFloat(p.amount_paid || "0"), 0);
 
       doc.setFont("helvetica", "bold");
       doc.setFontSize(9);
-      doc.text("TOTAL", colPositions[4] + colWidths[4] / 2, yPosition + 10, { align: "center" });
-      doc.text(`Rs.${totalAmount.toFixed(2)}`, colPositions[5] + colWidths[5] / 2, yPosition + 10, { align: "center" });
+      doc.text("TOTAL", paymentColPositions[4] + paymentColWidths[4] / 2, yPosition + 10, { align: "center" });
+      doc.text(`Rs${totalAmount.toFixed(2)}`, paymentColPositions[5] + paymentColWidths[5] / 2, yPosition + 10, { align: "center" });
 
       yPosition += 20;
 
