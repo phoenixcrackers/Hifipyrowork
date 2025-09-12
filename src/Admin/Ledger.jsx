@@ -192,7 +192,7 @@ export default function Ledger() {
     setFiltered(filtered);
   };
 
-const downloadReceipt = (booking) => {
+const downloadReceipt = async (booking) => {
   if (!booking) {
     setReceiptError("No booking data available.");
     return;
@@ -206,6 +206,66 @@ const downloadReceipt = (booking) => {
     const receiptId = generateReceiptId();
     const safeName = booking.customer_name?.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "customer";
     let yPosition = 60;
+
+    // Fetch all bookings for the same customer name
+    const customerBookings = bookings.filter((b) => b.customer_name?.toLowerCase() === booking.customer_name?.toLowerCase());
+    if (customerBookings.length === 0) {
+      setReceiptError("No bookings found for this customer.");
+      return;
+    }
+
+    // Aggregate data
+    let allParsedProducts = [];
+    let allDispatchLogs = [];
+    let allPayments = [];
+    let allExtraCharges = { pf: 0, tax: 0, minus: 0 };
+
+    for (const b of customerBookings) {
+      // Parse products
+      const parsedProducts = Array.isArray(b.products)
+        ? b.products
+        : JSON.parse(b.products || "[]").length > 0
+        ? JSON.parse(b.products)
+        : [];
+      allParsedProducts = [...allParsedProducts, ...parsedProducts.map((p, idx) => ({ ...p, order_id: b.order_id, product_index: idx }))];
+
+      // Fetch dispatch logs
+      try {
+        const dispatchRes = await fetch(`${API_BASE_URL}/api/dispatch_logs/${b.order_id}`);
+        const { dispatch_logs } = await dispatchRes.json();
+        allDispatchLogs = [...allDispatchLogs, ...(dispatch_logs || []).map((log) => ({ ...log, order_id: b.order_id }))];
+      } catch (err) {
+        console.error(`Failed to fetch dispatch logs for order ${b.order_id}:`, err);
+      }
+
+      // Fetch payments
+      try {
+        const paymentRes = await axios.get(`${API_BASE_URL}/api/transactions/${b.id}`);
+        allPayments = [...allPayments, ...(paymentRes.data || []).map((p) => ({ ...p, order_id: b.order_id }))];
+      } catch (err) {
+        console.error(`Failed to fetch payments for order ${b.order_id}:`, err);
+      }
+
+      // Aggregate extra charges
+      const extraCharges = parseExtraCharges(b.extra_charges);
+      allExtraCharges.pf += Number.parseFloat(extraCharges.pf || 0);
+      allExtraCharges.tax += Number.parseFloat(extraCharges.tax || 0);
+      allExtraCharges.minus += Number.parseFloat(extraCharges.minus || 0);
+    }
+
+    // Calculate totals
+    const totalDispatchedQty = allDispatchLogs.reduce((sum, log) => sum + Number(log.dispatched_qty || 0), 0);
+    const totalPurchase = allParsedProducts.reduce((total, product) => {
+      const price = parseFloat(product.price) || 0;
+      const qty = parseFloat(product.quantity) || 0;
+      const discount = parseFloat(product.discount) || 0;
+      const lineTotal = price * qty;
+      const discounted = lineTotal - (lineTotal * discount / 100);
+      return total + discounted;
+    }, 0) + allExtraCharges.tax + allExtraCharges.pf - allExtraCharges.minus;
+    const dispatchedDebit = calculateDebit(allDispatchLogs, allParsedProducts, allExtraCharges);
+    const credit = allPayments.reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
+    const netBalance = credit - totalPurchase;
 
     // Header Section
     doc.setFontSize(10);
@@ -236,45 +296,25 @@ const downloadReceipt = (booking) => {
     doc.text(`Order Date: ${formatDate(booking.created_at || new Date())}`, pageWidth - margin, rightYPosition, { align: "right" });
     yPosition += 60;
 
-    // Parse data
-    const parsedProducts = Array.isArray(booking.products)
-      ? booking.products
-      : JSON.parse(booking.products || "[]").length > 0
-      ? JSON.parse(booking.products)
-      : [];
-    const extraCharges = parseExtraCharges(booking.extra_charges);
-    const totalDispatchedQty = dispatchLogs.reduce((sum, log) => sum + Number(log.dispatched_qty || 0), 0); // Dispatched quantity for ledger table
-    const dispatchedDebit = calculateDebit(dispatchLogs, parsedProducts, extraCharges); // For ledger table display
-    const totalPurchase = parsedProducts.reduce((total, product) => {
-      const price = parseFloat(product.price) || 0;
-      const qty = parseFloat(product.quantity) || 0;
-      const discount = parseFloat(product.discount) || 0;
-      const lineTotal = price * qty;
-      const discounted = lineTotal - (lineTotal * discount / 100);
-      return total + discounted;
-    }, 0) + parseFloat(extraCharges.tax || 0) + parseFloat(extraCharges.pf || 0) - parseFloat(extraCharges.minus || 0); // Total purchase based on initial quantities
-    const credit = payments.reduce((sum, p) => sum + Number(p.amount_paid || 0), 0);
-    const netBalance = credit - totalPurchase; // Balance based on initial quantities
-
     // Summary Section
     doc.setFontSize(12);
     doc.setFont("helvetica", "bold");
-    doc.text("Ledger Summary (Balance Based on Initial Booking)", margin, yPosition);
+    doc.text("Ledger Summary (Balance Based on All Bookings)", margin, yPosition);
     yPosition += 20;
     doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(`Total Purchase (Initial Booking): Rs${totalPurchase.toFixed(2)}`, margin, yPosition);
+    doc.text(`Total Purchase (All Bookings): Rs${totalPurchase.toFixed(2)}`, margin, yPosition);
     yPosition += 15;
     doc.text(`Amount Paid: Rs${credit.toFixed(2)}`, margin, yPosition);
     yPosition += 15;
     doc.setTextColor(netBalance < 0 ? 255 : 0, netBalance < 0 ? 0 : 128, 0);
-    doc.text(`Balance Amount to be Paid: Rs${Math.abs(netBalance).toFixed(2)} ${netBalance < 0 ? "(Outstanding)" : "(Advance)"}`, margin, yPosition);
+    doc.text(`Balance Amount: Rs${Math.abs(netBalance).toFixed(2)} ${netBalance < 0 ? "(Outstanding)" : "(Advance)"}`, margin, yPosition);
     doc.setTextColor(0, 0, 0);
     yPosition += 30;
 
     // Ledger Table Setup
     const tableWidth = pageWidth - 2 * margin;
-    const ledgerColWidths = [40, 150, 60, 60, 80, 60, 60];
+    const ledgerColWidths = [40, 110, 60, 60, 80, 60, 60];
     const ledgerColPositions = [margin];
     for (let i = 0; i < ledgerColWidths.length - 1; i++) {
       ledgerColPositions.push(ledgerColPositions[i] + ledgerColWidths[i]);
@@ -300,15 +340,15 @@ const downloadReceipt = (booking) => {
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     const tableData = [
-      ...dispatchLogs.map((log, index) => {
-        const prod = parsedProducts[log.product_index];
+      ...allDispatchLogs.map((log, index) => {
+        const prod = allParsedProducts.find((p) => p.order_id === log.order_id && p.product_index === log.product_index);
         const price = prod ? parseFloat(prod.price) || 0 : 0;
         const discount = prod ? parseFloat(prod.discount || 0) : 0;
         const effectivePrice = price - (price * discount / 100);
         const amount = effectivePrice * (log.dispatched_qty || 0);
         return {
           slNo: index + 1,
-          productName: log.product_name || "N/A",
+          productName: `${log.product_name || "N/A"}`,
           quantity: log.dispatched_qty || 0,
           ratePerBox: effectivePrice.toFixed(2),
           debit: amount.toFixed(2),
@@ -316,8 +356,8 @@ const downloadReceipt = (booking) => {
           date: new Date(log.dispatched_at).getTime(),
         };
       }),
-      ...payments.map((payment, index) => ({
-        slNo: dispatchLogs.length + index + 1,
+      ...allPayments.map((payment, index) => ({
+        slNo: allDispatchLogs.length + index + 1,
         productName: `Payment (${payment.payment_method || "N/A"})`,
         quantity: "",
         ratePerBox: "",
@@ -375,9 +415,7 @@ const downloadReceipt = (booking) => {
     });
 
     // Extra Charges
-    const tax = Number.parseFloat(extraCharges.tax || 0);
-    const pf = Number.parseFloat(extraCharges.pf || 0);
-    const minus = Number.parseFloat(extraCharges.minus || 0);
+    const { tax, pf, minus } = allExtraCharges;
     if (tax || pf || minus) {
       yPosition += 10;
       doc.setFontSize(9);
@@ -417,7 +455,7 @@ const downloadReceipt = (booking) => {
       }
     }
 
-    // Total Row (Shows dispatched debit for reference)
+    // Total Row
     yPosition += 10;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
@@ -436,7 +474,7 @@ const downloadReceipt = (booking) => {
     doc.setTextColor(0, 0, 0);
     yPosition += 20;
 
-    // Net Balance Row (Based on initial booking)
+    // Net Balance Row
     doc.setFontSize(10);
     doc.setFillColor(200, 200, 200);
     doc.rect(margin, yPosition, tableWidth, 20, "F");
@@ -444,7 +482,7 @@ const downloadReceipt = (booking) => {
     for (let i = 1; i < ledgerColPositions.length; i++) {
       doc.line(ledgerColPositions[i], yPosition, ledgerColPositions[i], yPosition + 20);
     }
-    doc.text("Balance Amount to be Paid", ledgerColPositions[1] + 4, yPosition + 14, { align: "left" });
+    doc.text("Balance Amount", ledgerColPositions[1] + 4, yPosition + 14, { align: "left" });
     doc.setTextColor(netBalance < 0 ? 255 : 0, netBalance < 0 ? 0 : 128, 0);
     doc.text(
       `Rs${Math.abs(netBalance).toFixed(2)} ${netBalance < 0 ? "(Outstanding)" : "(Advance)"}`,
@@ -481,10 +519,10 @@ const downloadReceipt = (booking) => {
     // Transaction Table Data
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    const paymentTableData = payments
+    const paymentTableData = allPayments
       .map((payment, index) => ({
         slNo: (index + 1).toString(),
-        paymentType: payment.payment_method || "N/A",
+        paymentType: `${payment.payment_method || "N/A"}`,
         bankName: payment.bank_name || "N/A",
         paidToAdmin: payment.admin_username || "N/A",
         date: formatDate(payment.transaction_date || payment.created_at),
@@ -552,7 +590,7 @@ const downloadReceipt = (booking) => {
     }
 
     // Total Row for Transaction Table
-    const totalAmount = payments.reduce((sum, p) => sum + Number.parseFloat(p.amount_paid || "0"), 0);
+    const totalAmount = allPayments.reduce((sum, p) => sum + Number.parseFloat(p.amount_paid || "0"), 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.text("TOTAL", paymentColPositions[4] + paymentColWidths[4] / 2, yPosition + 10, { align: "center" });
