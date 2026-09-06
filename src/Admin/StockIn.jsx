@@ -25,7 +25,7 @@ export default function StockIn() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/gift-box-products`);
+      const response = await fetch(`${API_BASE_URL}/api/hifi/gift-box-products`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Failed to fetch products');
       setProducts([...data].sort((a, b) => (a.serial_number || "").localeCompare(b.serial_number || "", undefined, { numeric: true })));
@@ -36,7 +36,7 @@ export default function StockIn() {
 
   const fetchStockHistory = async (productId) => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/gift-box-products/${productId}/stock-history`);
+      const response = await fetch(`${API_BASE_URL}/api/hifi/gift-box-products/${productId}/stock-history`);
       const data = await response.json();
       if (!response.ok) throw new Error(data.message || 'Failed to fetch stock history');
       setStockHistory(data);
@@ -56,7 +56,7 @@ export default function StockIn() {
     setError('');
     setSuccess('');
     try {
-      const response = await fetch(`${API_BASE_URL}/api/gift-box-products/${selectedProduct.id}/add-stock`, {
+      const response = await fetch(`${API_BASE_URL}/api/hifi/gift-box-products/${selectedProduct.id}/add-stock`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ quantity: parseInt(addStockData.quantity) }),

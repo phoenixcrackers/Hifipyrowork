@@ -142,7 +142,7 @@ export default function Dealers() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/gift-box-products`);
+      const response = await fetch(`${API_BASE_URL}/api/hifi/gift-box-products`);
       if (!response.ok) throw new Error((await response.json()).message || 'Failed to fetch products');
       const data = await response.json();
       setProducts(data);
@@ -185,7 +185,7 @@ export default function Dealers() {
         formDataToSend.append('images', file);
       });
 
-      const url = `${API_BASE_URL}/api/gift-box-products${isEdit ? `/${selectedProduct.id}` : ''}`;
+      const url = `${API_BASE_URL}/api/hifi/gift-box-products${isEdit ? `/${selectedProduct.id}` : ''}`;
       const response = await fetch(url, {
         method: isEdit ? 'PUT' : 'POST',
         body: formDataToSend,
@@ -205,7 +205,7 @@ export default function Dealers() {
   const handleDelete = async (product) => {
     if (!window.confirm(`Are you sure you want to delete ${product.productname}?`)) return;
     try {
-      const response = await fetch(`${API_BASE_URL}/api/gift-box-products/${product.id}`, { method: 'DELETE' });
+      const response = await fetch(`${API_BASE_URL}/api/hifi/gift-box-products/${product.id}`, { method: 'DELETE' });
       if (!response.ok) throw new Error((await response.json()).message || 'Failed to delete product');
       setSuccess('Product deleted successfully!');
       fetchProducts();
@@ -220,7 +220,7 @@ export default function Dealers() {
     const productKey = `${productType}-${product.id}`;
     try {
       setToggleStates(prev => ({ ...prev, [productKey]: !prev[productKey] }));
-      const response = await fetch(`${API_BASE_URL}/api/gift-box-products/${product.id}/toggle-status`, { method: 'PATCH' });
+      const response = await fetch(`${API_BASE_URL}/api/hifi/gift-box-products/${product.id}/toggle-status`, { method: 'PATCH' });
       if (!response.ok) throw new Error('Failed to toggle status');
       setSuccess('Status toggled successfully!');
       await fetchProducts();

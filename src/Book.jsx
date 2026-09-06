@@ -111,9 +111,9 @@ const Book = () => {
         }
 
         const [prodRes, statesRes, userRes] = await Promise.all([
-          fetch(`${API_BASE_URL}/api/gift-box-products`),
+          fetch(`${API_BASE_URL}/api/hifi/gift-box-products`),
           fetch(`${API_BASE_URL_loc}/api/locations/states`),
-          fetch(`${API_BASE_URL}/api/auth/user/${encodeURIComponent(username)}`)
+          fetch(`${API_BASE_URL}/api/hifi/auth/user/${encodeURIComponent(username)}`)
         ]);
 
         if (!prodRes.ok) {
@@ -232,14 +232,14 @@ const Book = () => {
       };
     });
     try {
-      const res = await fetch(`${API_BASE_URL}/api/dbooking`, {
+      const res = await fetch(`${API_BASE_URL}/api/hifi/dbooking`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...state.customer, products: bookingProducts, total: totals.total })
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to create booking");
-      const prodRes = await fetch(`${API_BASE_URL}/api/gift-box-products`);
+      const prodRes = await fetch(`${API_BASE_URL}/api/hifi/gift-box-products`);
       if (!prodRes.ok) {
         const errorData = await prodRes.json();
         throw new Error(errorData.message || "Failed to refresh products");
@@ -259,7 +259,7 @@ const Book = () => {
         cart: {},
         isCartOpen: false,
         showForm: false,
-        invoiceUrl: `${API_BASE_URL}/api/dbooking/invoice/${data.order_id}`,
+        invoiceUrl: `${API_BASE_URL}/api/hifi/dbooking/invoice/${data.order_id}`,
         products: parsedProducts,
         cardImageIndexes: updatedImageIndexes,
         customer: { ...s.customer },
@@ -281,7 +281,7 @@ const Book = () => {
         setTimeout(() => setState(s => ({ ...s, showError: false })), 5000);
         return;
       }
-      const res = await fetch(`${API_BASE_URL}/api/auth/user/${encodeURIComponent(customer_name)}`, {
+      const res = await fetch(`${API_BASE_URL}/api/hifi/auth/user/${encodeURIComponent(customer_name)}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

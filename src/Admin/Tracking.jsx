@@ -27,7 +27,7 @@ export default function Tracking() {
       return;
     }
     try {
-      const res = await axios.patch(`${API_BASE_URL}/api/dbooking/${booking.order_id}/cancel`);
+      const res = await axios.patch(`${API_BASE_URL}/api/hifi/dbooking/${booking.order_id}/cancel`);
       setSuccess(res.data.message || `Order ${booking.order_id} cancelled and stock restored!`);
       await fetchBookings();
       setTimeout(() => setSuccess(''), 5000);
@@ -42,7 +42,7 @@ export default function Tracking() {
     }
 
     try {
-      await axios.delete(`${API_BASE_URL}/api/dbooking/${bookingId}`);
+      await axios.delete(`${API_BASE_URL}/api/hifi/dbooking/${bookingId}`);
       setBookings((prev) => prev.filter((b) => b.id !== bookingId));
       setSuccess("Booking deleted successfully and stock restored!");
       setTimeout(() => setSuccess(''), 4000);
@@ -56,7 +56,7 @@ export default function Tracking() {
 
   const fetchBookings = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/tracking/bookings`);
+      const response = await axios.get(`${API_BASE_URL}/api/hifi/tracking/bookings`);
       const parsedData = response.data.map(b => ({
         ...b,
         products: typeof b.products === 'string' ? JSON.parse(b.products) : b.products,
@@ -69,7 +69,7 @@ export default function Tracking() {
 
   const fetchAdmins = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/admins`);
+      const response = await axios.get(`${API_BASE_URL}/api/hifi/admins`);
       setAdmins(response.data);
     } catch (err) {
       setError('Failed to fetch admins');
@@ -112,7 +112,7 @@ export default function Tracking() {
         amount_paid: newAmountPaid,
         admin_id: selectedAdmin,
       };
-      await axios.patch(`${API_BASE_URL}/api/tracking/bookings/${selectedBooking.id}/status`, payload);
+      await axios.patch(`${API_BASE_URL}/api/hifi/tracking/bookings/${selectedBooking.id}/status`, payload);
       fetchBookings();
       setSelectedBooking(null);
       setIsModalOpen(false);
@@ -155,7 +155,7 @@ export default function Tracking() {
   const saveEditedBooking = async () => {
     try {
       const payload = { products: editedBooking.products };
-      await axios.patch(`${API_BASE_URL}/api/dbookings/${editedBooking.id}/edit-products`, payload);
+      await axios.patch(`${API_BASE_URL}/api/hifi/dbookings/${editedBooking.id}/edit-products`, payload);
       setIsEditModalOpen(false);
       fetchBookings();
     } catch (err) {
@@ -300,7 +300,7 @@ export default function Tracking() {
                           Edit
                         </button>
                         <a
-                          href={`${API_BASE_URL}/api/dbooking/invoice/${booking.order_id}.pdf`}
+                          href={`${API_BASE_URL}/api/hifi/dbooking/invoice/${booking.order_id}.pdf`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="bg-blue-600 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold hover:bg-blue-700 inline-flex items-center"

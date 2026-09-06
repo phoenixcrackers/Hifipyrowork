@@ -94,7 +94,7 @@ const Login = () => {
       const endpoint = isRegister ? 'register' : 'loginus';
       const body = isRegister ? formData : { username: formData.username, password: formData.password };
       
-      const res = await fetch(`${API_BASE_URL}/api/auth/${endpoint}`, {
+      const res = await fetch(`${API_BASE_URL}/api/hifi/auth/${endpoint}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)

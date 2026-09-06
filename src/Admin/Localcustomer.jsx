@@ -60,7 +60,7 @@ export default function Localcustomer() {
 
   const fetchAgents = async () => {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/directcust/agents`);
+      const response = await fetch(`${API_BASE_URL}/api/hifi/directcust/agents`);
       if (response.ok) {
         setAgents(await response.json());
       }
@@ -72,7 +72,7 @@ export default function Localcustomer() {
   const fetchCustomersList = async () => {
     setLoadingList(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/directcust/customers`);
+      const response = await fetch(`${API_BASE_URL}/api/hifi/directcust/customers`);
       if (response.ok) {
         const data = await response.json();
         setCustomersList(Array.isArray(data) ? data : []);
@@ -161,7 +161,7 @@ export default function Localcustomer() {
         box_count: formData.boxCount
       };
 
-      const response = await fetch(`${API_BASE_URL}/api/directcust/customers`, {
+      const response = await fetch(`${API_BASE_URL}/api/hifi/directcust/customers`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

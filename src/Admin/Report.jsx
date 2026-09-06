@@ -18,7 +18,7 @@ export default function Report() {
 
   const fetchBookings = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/tracking/bookings`);
+      const response = await axios.get(`${API_BASE_URL}/api/hifi/tracking/bookings`);
       setBookings(response.data);
       setError('');
     } catch (err) {

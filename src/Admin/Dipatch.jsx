@@ -48,7 +48,7 @@ export default function Dispatch() {
 
   const fetchBookings = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/tracking/bookings`);
+      const response = await axios.get(`${API_BASE_URL}/api/hifi/tracking/bookings`);
       const filtered = response.data.filter((b) => {
         if (b.status === 'cancelled' || b.status === 'canceled') return false;
         const totalQty = getTotalQty(b);
@@ -73,7 +73,7 @@ export default function Dispatch() {
     try {
       setError('');
       setSuccess('');
-      const response = await axios.patch(`${API_BASE_URL}/api/dbooking/${booking.order_id}/cancel`);
+      const response = await axios.patch(`${API_BASE_URL}/api/hifi/dbooking/${booking.order_id}/cancel`);
       setSuccess(response.data.message || `Order ${booking.order_id} cancelled and products restocked successfully!`);
       await fetchBookings();
       setTimeout(() => setSuccess(''), 5000);
@@ -128,7 +128,7 @@ export default function Dispatch() {
       }
 
       await axios.patch(
-        `${API_BASE_URL}/api/tracking/bookings/order/${selectedBooking.order_id}/status`,
+        `${API_BASE_URL}/api/hifi/tracking/bookings/order/${selectedBooking.order_id}/status`,
         payload
       );
 

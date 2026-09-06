@@ -15,7 +15,7 @@ export default function Admin() {
     setError('');
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/loginad`, {
+      const response = await fetch(`${API_BASE_URL}/api/hifi/loginad`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

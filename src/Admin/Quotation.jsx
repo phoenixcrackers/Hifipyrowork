@@ -68,8 +68,8 @@ export default function Quotation() {
       try {
         setState((s) => ({ ...s, loading: true }));
         const [customers, products] = await Promise.all([
-          axios.get(`${API_BASE_URL}/api/direct/customers`).then((res) => (Array.isArray(res.data) ? res.data : [])),
-          axios.get(`${API_BASE_URL}/api/direct/products`).then((res) => (Array.isArray(res.data) ? res.data : [])),
+          axios.get(`${API_BASE_URL}/api/hifi/direct/customers`).then((res) => (Array.isArray(res.data) ? res.data : [])),
+          axios.get(`${API_BASE_URL}/api/hifi/direct/products`).then((res) => (Array.isArray(res.data) ? res.data : [])),
         ]);
         setState((s) => ({ ...s, customers, products }));
       } catch (err) {
@@ -80,7 +80,7 @@ export default function Quotation() {
 
     const fetchQuotations = async () => {
       try {
-        const quotations = await axios.get(`${API_BASE_URL}/api/quotations`).then((res) => {
+        const quotations = await axios.get(`${API_BASE_URL}/api/hifi/quotations`).then((res) => {
           return Array.isArray(res.data) ? res.data : [];
         });
         setState((s) => ({ ...s, quotations, loading: false }));
@@ -192,7 +192,7 @@ export default function Quotation() {
 
     try {
       const c = state.selectedCustomer.customerData || {};
-      const response = await axios.post(`${API_BASE_URL}/api/quotations`, {
+      const response = await axios.post(`${API_BASE_URL}/api/hifi/quotations`, {
         customer_id: c.id ? Number(c.id) : null,
         customer_name: c.customer_name || c.name || "Customer",
         company_name: c.companyname || c.company_name || "",
@@ -210,7 +210,7 @@ export default function Quotation() {
       const { est_id } = response.data;
       const customerNameForPdf = c.customer_name || c.name || "customer";
       downloadFile(
-        `${API_BASE_URL}/api/quotations/${est_id}.pdf`,
+        `${API_BASE_URL}/api/hifi/quotations/${est_id}.pdf`,
         `${customerNameForPdf.toLowerCase().replace(/[^a-z0-9]+/g, "_")}-${est_id}.pdf`
       );
 
@@ -242,7 +242,7 @@ export default function Quotation() {
     }
 
     try {
-      const response = await axios.patch(`${API_BASE_URL}/api/quotations/${state.selectedQuotation.est_id}/edit`, {
+      const response = await axios.patch(`${API_BASE_URL}/api/hifi/quotations/${state.selectedQuotation.est_id}/edit`, {
         products: state.editCart,
         total: Number.parseFloat(total),
         extra_charges: state.extraCharges,
@@ -251,7 +251,7 @@ export default function Quotation() {
       const { est_id } = response.data;
       const customerNameForPdf = state.selectedQuotation.customer_name || "customer";
       downloadFile(
-        `${API_BASE_URL}/api/quotations/${est_id}.pdf`,
+        `${API_BASE_URL}/api/hifi/quotations/${est_id}.pdf`,
         `${customerNameForPdf.toLowerCase().replace(/[^a-z0-9]+/g, "_")}-${est_id}.pdf`
       );
 
@@ -293,7 +293,7 @@ export default function Quotation() {
 
     try {
       const q = state.selectedQuotation;
-      const response = await axios.post(`${API_BASE_URL}/api/quotations/book`, {
+      const response = await axios.post(`${API_BASE_URL}/api/hifi/quotations/book`, {
         est_id: q.est_id,
         customer_id: q.customer_id ? Number(q.customer_id) : null,
         customer_name: q.customer_name,
@@ -311,7 +311,7 @@ export default function Quotation() {
       const { order_id } = response.data;
       const customerNameForPdf = q.customer_name || "customer";
       downloadFile(
-        `${API_BASE_URL}/api/dbooking/invoice/${order_id}.pdf`,
+        `${API_BASE_URL}/api/hifi/dbooking/invoice/${order_id}.pdf`,
         `${customerNameForPdf.toLowerCase().replace(/[^a-z0-9]+/g, "_")}-${order_id}.pdf`
       );
 
@@ -345,7 +345,7 @@ export default function Quotation() {
     if (!window.confirm(msg)) return;
 
     try {
-      const res = await axios.patch(`${API_BASE_URL}/api/quotations/${q.est_id}/cancel`);
+      const res = await axios.patch(`${API_BASE_URL}/api/hifi/quotations/${q.est_id}/cancel`);
       setState((s) => ({
         ...s,
         quotations: s.quotations.map((item) => (item.est_id === q.est_id ? { ...item, status: "canceled" } : item)),
@@ -366,7 +366,7 @@ export default function Quotation() {
     if (!window.confirm(`Are you sure you want to delete quotation ${est_id}? This will restore any reserved stock if booked.`)) return;
 
     try {
-      await axios.delete(`${API_BASE_URL}/api/quotations/${est_id}`);
+      await axios.delete(`${API_BASE_URL}/api/hifi/quotations/${est_id}`);
       setState((s) => ({
         ...s,
         quotations: s.quotations.filter((q) => q.est_id !== est_id),
@@ -386,7 +386,7 @@ export default function Quotation() {
   const openModal = async (q, modalType = "view") => {
     if (modalType === "view") {
       try {
-        const response = await axios.get(`${API_BASE_URL}/api/quotations/${q.est_id}`, { responseType: "blob" });
+        const response = await axios.get(`${API_BASE_URL}/api/hifi/quotations/${q.est_id}`, { responseType: "blob" });
         const url = window.URL.createObjectURL(new Blob([response.data], { type: "application/pdf" }));
         setState((s) => ({ ...s, selectedQuotation: q, viewModal: true, pdfUrl: url, pdfError: "" }));
       } catch (err) {
@@ -923,7 +923,7 @@ export default function Quotation() {
                       onClick={() => {
                         const safeCustomer = (state.selectedQuotation.customer_name || "quotation").toLowerCase().replace(/[^a-z0-9]+/g, "_");
                         downloadFile(
-                          `${API_BASE_URL}/api/quotations/${state.selectedQuotation.est_id}.pdf`,
+                          `${API_BASE_URL}/api/hifi/quotations/${state.selectedQuotation.est_id}.pdf`,
                           `${safeCustomer}-${state.selectedQuotation.est_id}.pdf`
                         );
                       }}

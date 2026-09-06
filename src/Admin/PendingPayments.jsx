@@ -25,7 +25,7 @@ export default function PendingPayments() {
 
   const fetchPendingBookings = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/tracking/bookings`);
+      const response = await axios.get(`${API_BASE_URL}/api/hifi/tracking/bookings`);
       const pending = response.data.filter(
         (booking) =>
           booking.status !== 'delivered' &&
@@ -43,7 +43,7 @@ export default function PendingPayments() {
   const fetchPaymentHistory = async (booking) => {
     setSelectedBooking(booking);
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/transactions/${booking.id}`);
+      const response = await axios.get(`${API_BASE_URL}/api/hifi/transactions/${booking.id}`);
       setPaymentHistory(response.data);
       setIsHistoryModalOpen(true);
     } catch (err) {
@@ -53,7 +53,7 @@ export default function PendingPayments() {
 
   const fetchAdmins = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/admins`);
+      const response = await axios.get(`${API_BASE_URL}/api/hifi/admins`);
       setAdmins(response.data);
     } catch (err) {
       setError('Failed to fetch admins');
@@ -63,7 +63,7 @@ export default function PendingPayments() {
   const fetchBankAccounts = async (username) => {
     try {
       if (username) {
-        const response = await axios.get(`${API_BASE_URL}/api/admins/${username}/bank-accounts`);
+        const response = await axios.get(`${API_BASE_URL}/api/hifi/admins/${username}/bank-accounts`);
         setBankAccounts(response.data || []);
       } else {
         setBankAccounts([]);
@@ -109,7 +109,7 @@ export default function PendingPayments() {
     try {
       setError('');
       setSuccess('');
-      const response = await axios.patch(`${API_BASE_URL}/api/dbooking/${booking.order_id}/cancel`);
+      const response = await axios.patch(`${API_BASE_URL}/api/hifi/dbooking/${booking.order_id}/cancel`);
       setSuccess(response.data.message || `Order ${booking.order_id} cancelled and stock restored!`);
       await fetchPendingBookings();
       setTimeout(() => setSuccess(''), 5000);
@@ -142,7 +142,7 @@ export default function PendingPayments() {
         admin_id: selectedAdmin,
         bank_account: paymentMethod === 'bank' ? selectedBankAccount : null,
       };
-      await axios.patch(`${API_BASE_URL}/api/tracking/bookings/${selectedBooking.id}/status`, payload);
+      await axios.patch(`${API_BASE_URL}/api/hifi/tracking/bookings/${selectedBooking.id}/status`, payload);
       setSuccess(`Payment of ₹${newAmountPaid.toFixed(2)} recorded successfully!`);
       fetchPendingBookings();
       setSelectedBooking(null);

@@ -23,7 +23,7 @@ export default function Receipt() {
     setLoadingAdmins(true);
     setError("");
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/admins`);
+      const response = await axios.get(`${API_BASE_URL}/api/hifi/admins`);
       const transformedAdmins = response.data.map((admin) => ({
         ...admin,
         bank_name: Array.isArray(admin.bank_name) ? admin.bank_name : admin.bank_name ? [admin.bank_name] : [],
@@ -41,7 +41,7 @@ export default function Receipt() {
     setLoadingTransactions(true);
     setError("");
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/admins/${adminId}/transactions`);
+      const response = await axios.get(`${API_BASE_URL}/api/hifi/admins/${adminId}/transactions`);
       setTransactions(response.data);
     } catch (err) {
       setError("Failed to fetch transactions.");
@@ -54,7 +54,7 @@ export default function Receipt() {
   const fetchBankAccounts = async (username) => {
     try {
       if (username) {
-        const response = await axios.get(`${API_BASE_URL}/api/admins/${username}/bank-accounts`);
+        const response = await axios.get(`${API_BASE_URL}/api/hifi/admins/${username}/bank-accounts`);
         setBankAccounts(response.data || []);
       } else {
         setBankAccounts([]);
@@ -69,7 +69,7 @@ export default function Receipt() {
     e.preventDefault();
     if (!loggedInUsername || !newBankName.trim()) return;
     try {
-      await axios.post(`${API_BASE_URL}/api/admins/bank-accounts`, { username: loggedInUsername, bank_name: newBankName.trim() });
+      await axios.post(`${API_BASE_URL}/api/hifi/admins/bank-accounts`, { username: loggedInUsername, bank_name: newBankName.trim() });
       setNewBankName("");
       setShowAddBankForm(false);
       if (selectedAdmin?.username === loggedInUsername) {

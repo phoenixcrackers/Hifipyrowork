@@ -101,10 +101,10 @@ export default function Ledger() {
       return;
     }
     try {
-      await axios.patch(`${API_BASE_URL}/api/dbooking/${booking.order_id}/cancel`);
+      await axios.patch(`${API_BASE_URL}/api/hifi/dbooking/${booking.order_id}/cancel`);
       alert(`Order ${booking.order_id} cancelled and products restocked successfully!`);
       closeModal();
-      const res = await fetch(`${API_BASE_URL}/api/tracking/bookings`);
+      const res = await fetch(`${API_BASE_URL}/api/hifi/tracking/bookings`);
       const data = await res.json();
       setBookings(data);
       setFiltered(data);
@@ -115,7 +115,7 @@ export default function Ledger() {
 
   const fetchAdmins = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/api/admins`);
+      const response = await axios.get(`${API_BASE_URL}/api/hifi/admins`);
       setAdmins(response.data);
     } catch (err) {
       console.error("Failed to fetch admins:", err);
@@ -126,7 +126,7 @@ export default function Ledger() {
     try {
       const admin = admins.find((a) => a.id === adminId);
       if (admin) {
-        const response = await axios.get(`${API_BASE_URL}/api/admins/${admin.username}/bank-accounts`);
+        const response = await axios.get(`${API_BASE_URL}/api/hifi/admins/${admin.username}/bank-accounts`);
         setBankAccounts(response.data || []);
       } else {
         setBankAccounts([]);
@@ -139,7 +139,7 @@ export default function Ledger() {
 
   useEffect(() => {
     fetchAdmins();
-    fetch(`${API_BASE_URL}/api/tracking/bookings`)
+    fetch(`${API_BASE_URL}/api/hifi/tracking/bookings`)
       .then((res) => res.json())
       .then((data) => {
         setBookings(data);
@@ -160,8 +160,8 @@ export default function Ledger() {
 
     try {
       const [dispatchRes, paymentRes] = await Promise.all([
-        fetch(`${API_BASE_URL}/api/dispatch_logs/${booking.order_id}`),
-        axios.get(`${API_BASE_URL}/api/transactions/${booking.id}`),
+        fetch(`${API_BASE_URL}/api/hifi/dispatch_logs/${booking.order_id}`),
+        axios.get(`${API_BASE_URL}/api/hifi/transactions/${booking.id}`),
       ]);
       const { dispatch_logs } = await dispatchRes.json();
       setDispatchLogs(dispatch_logs || []);
@@ -256,7 +256,7 @@ const buildReceiptDoc = async (booking) => {
 
       // Fetch dispatch logs
       try {
-        const dispatchRes = await fetch(`${API_BASE_URL}/api/dispatch_logs/${b.order_id}`);
+        const dispatchRes = await fetch(`${API_BASE_URL}/api/hifi/dispatch_logs/${b.order_id}`);
         const { dispatch_logs } = await dispatchRes.json();
         allDispatchLogs = [...allDispatchLogs, ...(dispatch_logs || []).map((log) => ({ ...log, order_id: b.order_id }))];
       } catch (err) {
@@ -265,7 +265,7 @@ const buildReceiptDoc = async (booking) => {
 
       // Fetch payments
       try {
-        const paymentRes = await axios.get(`${API_BASE_URL}/api/transactions/${b.id}`);
+        const paymentRes = await axios.get(`${API_BASE_URL}/api/hifi/transactions/${b.id}`);
         allPayments = [...allPayments, ...(paymentRes.data || []).map((p) => ({ ...p, order_id: b.order_id }))];
       } catch (err) {
         console.error(`Failed to fetch payments for order ${b.order_id}:`, err);
