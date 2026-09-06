@@ -1,0 +1,26 @@
+@import "tailwindcss";
+
+@theme {
+  --breakpoint-hundred: 1550px;
+  --breakpoint-onefifty: 1024px;
+  --breakpoint-tab: 768px;
+  --breakpoint-mobile: 350px;
+}
+
+html, body {
+  background-color: #0f172a;
+  color: #f8fafc;
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  min-height: 100%;
+  overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+  background-color: #0f172a;
+}
