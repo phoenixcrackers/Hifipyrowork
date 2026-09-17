@@ -300,7 +300,7 @@ export default function Tracking() {
                           Edit
                         </button>
                         <a
-                          href={`${API_BASE_URL}/api/hifi/dbooking/invoice/${booking.order_id}.pdf`}
+                          href={`${API_BASE_URL}/api/hifi/dbooking/invoice/${booking.order_id}.pdf?fresh=true`}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="bg-blue-600 text-white px-2.5 py-1.5 rounded-xl text-xs font-semibold hover:bg-blue-700 inline-flex items-center"
